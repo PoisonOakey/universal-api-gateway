@@ -1,0 +1,34 @@
+# Git & IDE
+.git
+.github
+.gitignore
+.vscode
+
+# yfinance source (we pip install it, not copy it)
+yfinance/
+tests/
+doc/
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs & configs (not needed inside the container)
+*.md
+*.rst
+*.yml
+*.yaml
+*.txt
+!requirements.txt
+LICENSE.txt
+MANIFEST.in
+setup.py
+setup.cfg
+pyrightconfig.json
+meta.yaml
