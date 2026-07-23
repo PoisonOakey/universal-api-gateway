@@ -17,8 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ─────────────────────────────────────────────
 #  Copy only the API source code we wrote
 # ─────────────────────────────────────────────
-COPY main.py .
-COPY api/ ./api/
+COPY src/ .
 
 # ─────────────────────────────────────────────
 #  Expose port and start the server

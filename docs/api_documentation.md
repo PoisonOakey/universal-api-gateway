@@ -65,7 +65,9 @@ This API acts as a middleware connecting your frontend to Yahoo Finance (`yfinan
 
 ## 4. API #3: Set Pattern-Based Alert
 
-**Functionality:** Instead of a basic static price threshold, this endpoint allows the user to subscribe to specific technical or physics-economic patterns (e.g., "golden_cross", "mean_reversion", "breakout"). When the underlying algorithmic pattern is detected for the stock, the system will trigger an alert for trading.
+**Functionality:** Instead of a basic static price threshold, this endpoint registers a user's subscription to specific physics-economic patterns (e.g., "shannon_entropy_drop", "transfer_entropy_spike", "golden_cross"). 
+
+*Note: This API gateway simply stores the alert configuration. The external Core Econophysics Engine constantly evaluates the market data and pushes the actual alert when the algorithmic pattern is detected.*
 
 **REST Endpoint:** `POST /api/v1/pattern-alerts`
 
