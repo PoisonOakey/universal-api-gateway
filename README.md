@@ -82,6 +82,7 @@ This will print the fully rendered YAML to your terminal, proving your manifests
 
 ## 📚 Documentation
 - [Architecture Overview](docs/ARCHITECTURE.md) — How the 3-Tier engine is mapped.
+- [K8s Infrastructure](enterprise-k8s/README.md) — How K8s is being utilized here.
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
 - [Changelog](docs/CHANGELOG.md) — Release notes.
