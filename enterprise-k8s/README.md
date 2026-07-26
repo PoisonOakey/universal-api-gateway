@@ -6,7 +6,7 @@ This directory contains the **Infrastructure as Code (IaC)** required to spin up
 
 ---
 
-## 🏗️ The Architecture (Show, Don't Tell)
+## 🏗️ The Architecture
 
 How does a single YAML file on your laptop turn into a clustered production API? Here is exactly what happens when you run `kubectl apply -k .`
 
