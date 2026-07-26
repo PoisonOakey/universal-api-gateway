@@ -1,6 +1,6 @@
 # Universal API Gateway
 
-> A containerized, self-healing, config-driven API gateway built for seamless automation integration.
+> A containerized, self-healing, plug-and-play API gateway. Instantly proxy and orchestrate any external service via simple YAML configuration.
 
 ---
 
