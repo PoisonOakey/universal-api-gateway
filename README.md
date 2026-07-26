@@ -48,9 +48,7 @@ graph LR
 ├── 📁 docs/                  # Architecture & troubleshooting guides
 │
 ├── ⚙️ start.bat              # One-click local startup
-│
 ├── 🐳 Dockerfile
-│
 └── 🐳 docker-compose.yml
 ```
 
