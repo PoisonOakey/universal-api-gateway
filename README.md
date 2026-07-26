@@ -34,7 +34,7 @@ graph LR
 
 ## 📌 How to Use: "Fill in the Blanks"
 
-> [!IMPORTANT]
+> [!WARNING]
 > **Do NOT edit `src/main.py`** unless you are an advanced developer extending the core proxy engine (e.g., adding rate limiting or global auth middleware). 
 > For 99% of use cases, you simply open `config/gateway.yaml` and define the APIs you want to proxy. The Python engine will handle the rest automatically.
 
