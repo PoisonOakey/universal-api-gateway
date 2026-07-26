@@ -1,14 +1,14 @@
-# Universal API Gateway
+# Universal API Gateway 🚀
 
-> A containerized, self-healing, plug-and-play API gateway. Instantly proxy and orchestrate any external service via simple YAML configuration.
+> A containerized, self-healing, plug-and-play API gateway. Instantly proxy and orchestrate external services via a simple YAML configuration.
 
 ---
 
-## 🎯 Architecture & Purpose
+## 🎯 What it does
 
-This project is a **vendor-less, plug-and-play middleware brick**. It abstracts any third-party APIs (Weather, Finance, AI, etc.) behind a robust, containerized FastAPI layer. 
+A **vendor-less, plug-and-play middleware brick**. It abstracts third-party APIs (Weather, Finance, AI, etc.) behind a robust FastAPI layer.
 
-Instead of hardcoding logic in Python, this entire system is driven by a simple `gateway.yaml` file. An amateur user can simply "fill in the blanks" to connect to any backend API they want, and the system instantly generates the necessary high-speed proxy routes.
+No Python coding required. Define your APIs in `gateway.yaml` and the system instantly generates high-speed proxy routes.
 
 ```mermaid
 graph LR
@@ -32,39 +32,59 @@ graph LR
 
 ---
 
-## 📌 How to Use: "Fill in the Blanks"
+## 📂 Repository Structure
 
-> [!WARNING]
-> **Do NOT edit `src/main.py`** unless you are an advanced developer extending the core proxy engine (e.g., adding rate limiting or global auth middleware). 
-> For 99% of use cases, you simply open `config/gateway.yaml` and define the APIs you want to proxy. The Python engine will handle the rest automatically.
+```text
+📦 universal-api-gateway/
+│
+├── 📁 config/
+│   └── 📄 gateway.yaml       # 👈 99% of your edits happen here
+│
+├── 📁 enterprise-k8s/        # Kubernetes manifests for production
+│
+├── 📁 src/
+│   └── 🐍 main.py            # Core Python proxy engine
+│
+├── 📁 docs/                  # Architecture & troubleshooting guides
+│
+├── ⚙️ start.bat              # One-click local startup
+│
+├── 🐳 Dockerfile
+│
+└── 🐳 docker-compose.yml
+```
 
+---
+
+## 📌 Usage: "Fill in the Blanks"
+
+> [!IMPORTANT]  
+> **Do NOT edit `src/main.py`** unless extending the core engine. Just define your APIs in `config/gateway.yaml` and let the engine handle the rest.
+
+**Example `config/gateway.yaml`:**
 ```yaml
 gateways:
   - name: "weather"
     base_url: "https://api.open-meteo.com/v1"
     routes:
-      - path: "/weather/current"
+      - path: "/current"
         method: "GET"
         target_path: "/forecast?latitude=52.52&longitude=13.41&current=temperature_2m"
 ```
-The gateway will automatically spawn a new route at `http://localhost:30000/api/weather/weather/current` that safely proxies your request.
+Automatically generates a secure proxy route at: `http://localhost:30000/api/weather/current`
 
 ---
 
-## 🚀 Quickstart Deployment
+## 🚀 Quickstart
 
-We offer two deployment paths depending on your needs.
-
-### Path A: Normal User (Easy Mode)
-If you just want to run the API locally without dealing with clusters or complex terminals, use this method.
-
+### Local Development (Easy Mode)
 1. Ensure **Docker Desktop** is running.
-2. Edit `config/gateway.yaml` to point to the APIs you want.
-3. Double-click the `start.bat` file in the root folder.
-4. Open `http://localhost:30000/docs` to see your dynamically generated Swagger documentation.
+2. Edit `config/gateway.yaml` with your target APIs.
+3. Run `start.bat`.
+4. Visit `http://localhost:30000/docs` for the generated Swagger UI.
 
-### Path B: Enterprise (Kubernetes)
-If you are deploying to a production cluster, use the raw Infrastructure-as-Code manifests tucked away in the `enterprise-k8s/` folder.
+### Production (Kubernetes)
+For production clusters, use the raw manifests in `enterprise-k8s/`.
 
 ```bash
 docker build -t universal-api-gateway:latest .
@@ -72,11 +92,11 @@ kubectl apply -k .
 ```
 
 #### 🛡️ Verifying K8s Manifests (Dry Run)
-If you are modifying the Kubernetes files and want to verify they compile correctly *without* actually deploying them to a cluster, you can run a Kustomize dry-run:
+Verify manifests compile correctly without deploying:
 ```bash
 kubectl kustomize .
 ```
-This will print the fully rendered YAML to your terminal, proving your manifests are structurally perfect.
+*(Prints the rendered YAML to your terminal).*
 
 ---
 
