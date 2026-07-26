@@ -68,13 +68,13 @@ If you are deploying to a production cluster, use the raw Infrastructure-as-Code
 
 ```bash
 docker build -t universal-api-gateway:latest .
-kubectl apply -k enterprise-k8s/
+kubectl apply -k .
 ```
 
 #### 🛡️ Verifying K8s Manifests (Dry Run)
 If you are modifying the Kubernetes files and want to verify they compile correctly *without* actually deploying them to a cluster, you can run a Kustomize dry-run:
 ```bash
-kubectl kustomize enterprise-k8s/
+kubectl kustomize .
 ```
 This will print the fully rendered YAML to your terminal, proving your manifests are structurally perfect.
 

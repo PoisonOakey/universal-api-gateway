@@ -2,9 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - namespace.yaml
-  - api-deployment.yaml
-  - services.yaml
+  - enterprise-k8s/namespace.yaml
+  - enterprise-k8s/api-deployment.yaml
+  - enterprise-k8s/services.yaml
 
 # This automatically reads the user's config/gateway.yaml file
 # and converts it into a Kubernetes ConfigMap on the fly!
@@ -12,7 +12,7 @@ configMapGenerator:
   - name: gateway-config
     namespace: gateway-system
     files:
-      - gateway.yaml=gateway.yaml
+      - gateway.yaml=config/gateway.yaml
 
 # Disable the random hash suffix so it predictably matches the deployment
 generatorOptions:

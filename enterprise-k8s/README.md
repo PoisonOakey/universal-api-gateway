@@ -14,9 +14,9 @@ How does a single YAML file on your laptop turn into a clustered production API?
 graph TD
     %% Files
     GatewayYaml["📄 config/gateway.yaml\n(External User Config)"]
+    Kustomize["⚙️ kustomization.yaml\n(Root Orchestrator)"]
     
-    subgraph "enterprise-k8s/ (Kustomize Build)"
-        Kustomize["⚙️ kustomization.yaml\n(The Orchestrator)"]
+    subgraph "enterprise-k8s/ (K8s Resources)"
         DeployYaml["📄 api-deployment.yaml"]
         SvcYaml["📄 services.yaml"]
     end
@@ -87,7 +87,7 @@ graph TD
 To deploy this architecture, run the Kustomize apply command from the root of the repository:
 
 ```bash
-kubectl apply -k enterprise-k8s/
+kubectl apply -k .
 ```
 
 To verify the deployment is healthy:
