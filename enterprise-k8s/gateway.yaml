@@ -1,0 +1,32 @@
+# ==========================================
+#  Universal API Gateway Config
+# ==========================================
+# This file dynamically generates proxy routes on startup.
+# "Fill in the blanks" to connect to any backend API you want.
+
+gateways:
+  # ----------------------------------------
+  # Example 1: Open-Meteo Weather API
+  # ----------------------------------------
+  - name: "weather"
+    base_url: "https://api.open-meteo.com/v1"
+    routes:
+      - path: "/weather/current"
+        method: "GET"
+        target_path: "/forecast?latitude=52.52&longitude=13.41&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
+        description: "Fetches current weather for Berlin (example)"
+
+  # ----------------------------------------
+  # Example 2: Dummy JSON API
+  # ----------------------------------------
+  - name: "dummy"
+    base_url: "https://dummyjson.com"
+    routes:
+      - path: "/products"
+        method: "GET"
+        target_path: "/products"
+        description: "Fetches a list of dummy products"
+      - path: "/products/{id}"
+        method: "GET"
+        target_path: "/products/{id}"
+        description: "Fetches a specific dummy product by ID"

@@ -1,67 +1,87 @@
-# Econophysics API Interface
+# Universal API Gateway
 
-> A lightweight FastAPI middleware and documentation hub for our Econophysics trading system.
-
----
-
-## 🎯 Project Scope
-To be completely clear: **This repository is strictly an API interface.** 
-
-The heavy lifting—the actual thermodynamic market calculations, Shannon entropy processing, and complex economic modeling—lives in a separate, dedicated engine repository. 
-
-This project serves two specific purposes:
-1. **API Gateway:** A FastAPI layer that safely exposes the underlying econophysics engine to our frontend applications.
-2. **Documentation Hub:** The single source of truth for our API contracts, payloads, and endpoint structures.
+> A containerized, self-healing, config-driven API gateway built for seamless automation integration.
 
 ---
 
-## 🚀 What This API Exposes
-* **Econophysics Alerts:** Endpoints for the frontend to subscribe to structural market entropy drops.
-* **Transfer Entropy Mapping:** Endpoints to fetch causal information flows between SEA assets.
-* **Market Data:** Standardized RESTful routing for Yahoo Finance data.
+## 🎯 Architecture & Purpose
 
----
+This project is a **vendor-less, plug-and-play middleware brick**. It abstracts any third-party APIs (Weather, Finance, AI, etc.) behind a robust, containerized FastAPI layer. 
 
-## ⚙️ Architecture
+Instead of hardcoding logic in Python, this entire system is driven by a simple `gateway.yaml` file. An amateur user can simply "fill in the blanks" to connect to any backend API they want, and the system instantly generates the necessary high-speed proxy routes.
 
 ```mermaid
 graph LR
     %% Nodes
-    Frontend["💻 Frontend Client"]
-    API["⚡ FastAPI Interface\n(This Repo)"]
-    Engine["🧠 Core Econophysics Engine\n(External Repo)"]
-    YF["📊 Yahoo Finance"]
+    External["🤖 External Automation\n(n8n, CI/CD, CronBots)"]
+    K8s["⚙️ Gateway Pods\n(Port 30000)"]
+    Config["📌 config/gateway.yaml\n(Your API Definitions)"]
+    Provider["🌍 Any External API\n(Weather, Finance, etc.)"]
 
     %% Connections
-    Frontend <-->|"HTTP / REST"| API
-    API <-->|"Internal RPC"| Engine
-    API <-->|"Data Fetch"| YF
+    External <-->|"HTTP / REST"| K8s
+    Config -.->|"Dynamically Configures"| K8s
+    K8s <-->|"Async Proxy Fetch"| Provider
 
     %% Styling
-    style Frontend fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:#fff
-    style API fill:#3498db,stroke:#2980b9,stroke-width:3px,color:#fff
-    style Engine fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:#fff
-    style YF fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:#333
+    style External fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:#fff
+    style K8s fill:#3498db,stroke:#2980b9,stroke-width:2px,color:#fff
+    style Config fill:#e67e22,stroke:#d35400,stroke-width:2px,color:#fff
+    style Provider fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:#333
 ```
 
 ---
 
-## 📁 Repository Structure
-```text
-.
-├── src/                    # Source code
-│   ├── api/                # API routing logic
-│   └── main.py             # Application entry point
-├── docs/                   # Documentation
-│   ├── api_documentation.md
-│   └── walkthrough.md
-├── tests/                  # API endpoint unit tests
-├── Dockerfile              # Container definition for the API
-├── requirements.txt        # Python dependencies
-└── README.md               # This file
+## 📌 How to Use: "Fill in the Blanks"
+
+> [!IMPORTANT]
+> **Do NOT edit `src/main.py`** unless you are an advanced developer extending the core proxy engine (e.g., adding rate limiting or global auth middleware). 
+> For 99% of use cases, you simply open `config/gateway.yaml` and define the APIs you want to proxy. The Python engine will handle the rest automatically.
+
+```yaml
+gateways:
+  - name: "weather"
+    base_url: "https://api.open-meteo.com/v1"
+    routes:
+      - path: "/weather/current"
+        method: "GET"
+        target_path: "/forecast?latitude=52.52&longitude=13.41&current=temperature_2m"
 ```
+The gateway will automatically spawn a new route at `http://localhost:30000/api/weather/weather/current` that safely proxies your request.
 
 ---
 
-## 📚 API Documentation
-For full technical details, HTTP methods, and JSON payload schemas, please see the [API Documentation](docs/api_documentation.md).
+## 🚀 Quickstart Deployment
+
+We offer two deployment paths depending on your needs.
+
+### Path A: Normal User (Easy Mode)
+If you just want to run the API locally without dealing with clusters or complex terminals, use this method.
+
+1. Ensure **Docker Desktop** is running.
+2. Edit `config/gateway.yaml` to point to the APIs you want.
+3. Double-click the `start.bat` file in the root folder.
+4. Open `http://localhost:30000/docs` to see your dynamically generated Swagger documentation.
+
+### Path B: Enterprise (Kubernetes)
+If you are deploying to a production cluster, use the raw Infrastructure-as-Code manifests tucked away in the `enterprise-k8s/` folder.
+
+```bash
+docker build -t universal-api-gateway:latest .
+kubectl apply -k enterprise-k8s/
+```
+
+#### 🛡️ Verifying K8s Manifests (Dry Run)
+If you are modifying the Kubernetes files and want to verify they compile correctly *without* actually deploying them to a cluster, you can run a Kustomize dry-run:
+```bash
+kubectl kustomize enterprise-k8s/
+```
+This will print the fully rendered YAML to your terminal, proving your manifests are structurally perfect.
+
+---
+
+## 📚 Documentation
+- [Architecture Overview](docs/ARCHITECTURE.md) — How the 3-Tier engine is mapped.
+- [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
+- [Changelog](docs/CHANGELOG.md) — Release notes.

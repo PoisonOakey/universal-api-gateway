@@ -4,31 +4,22 @@
 .gitignore
 .vscode
 
-# yfinance source (we pip install it, not copy it)
-yfinance/
-tests/
-doc/
-
 # Python
 __pycache__
 *.pyc
 *.pyo
 *.egg-info
+.venv
+venv
+.env
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Docs & configs (not needed inside the container)
+# Documentation & Configs (Exclude from container)
+docs/
+enterprise-k8s/
 *.md
-*.rst
-*.yml
-*.yaml
-*.txt
-!requirements.txt
-LICENSE.txt
-MANIFEST.in
-setup.py
-setup.cfg
-pyrightconfig.json
-meta.yaml
+start.bat
+docker-compose.yml

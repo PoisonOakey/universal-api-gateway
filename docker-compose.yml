@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  universal-api-gateway:
+    build: .
+    image: universal-api-gateway:latest
+    container_name: universal-api-gateway-local
+    ports:
+      - "30000:8000"
+    restart: unless-stopped
+    environment:
+      - PORT=8000
+    volumes:
+      - ./config:/app/config
