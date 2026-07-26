@@ -49,7 +49,6 @@ graph LR
 ├── ⚙️ start.bat              # One-click local startup
 ├── 🐳 Dockerfile
 └── 🐳 docker-compose.yml
-
 ```
 
 ---
