@@ -4,6 +4,14 @@ All notable changes to this project are documented here.
 
 ---
 
+## v0.4.0 — CI/CD Pipeline (2026-07-27)
+
+### Added
+- **GitHub Actions CI:** Added an automated pipeline (`.github/workflows/ci.yml`) to verify Docker builds on every push.
+- **Documentation:** Appended CI/CD pipeline details to `README.md`.
+
+---
+
 ## v0.3.0 — SysOps Rebrand & NodePort Architecture
 
 ### Changed
