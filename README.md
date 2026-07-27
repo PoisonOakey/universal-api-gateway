@@ -103,3 +103,9 @@ kubectl kustomize .
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
 - [Changelog](docs/CHANGELOG.md) — Release notes.
+
+---
+
+## ⚙️ CI/CD Pipeline
+
+This repository utilizes **GitHub Actions** for continuous integration. On every push to the `main` branch, an automated pipeline verifies that the Docker image builds successfully, ensuring the gateway remains in a deployable state at all times.
