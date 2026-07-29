@@ -84,7 +84,13 @@ graph TD
 
 ## 🚀 Deployment
 
-To deploy this architecture, run the Kustomize apply command from the root of the repository:
+To deploy this architecture, you must first create a Kubernetes Secret containing your Auth token:
+
+```bash
+kubectl create secret generic gateway-auth --from-literal=API_AUTH_TOKEN=<REPLACE_ME> -n gateway-system
+```
+
+Then, run the Kustomize apply command from the root of the repository:
 
 ```bash
 kubectl apply -k .

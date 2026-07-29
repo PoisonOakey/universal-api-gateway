@@ -16,6 +16,19 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run Pytest Smoke Suite
+      run: pytest
+
     - name: Build Docker image (Dry Run)
       uses: docker/build-push-action@v5
       with:

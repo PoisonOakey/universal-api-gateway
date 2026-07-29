@@ -1,6 +1,6 @@
 # Python Core Engine
 
-This directory contains the beating heart of the Gateway: `main.py`.
+This directory contains the Gateway's application code: `main.py`. It's a single file — there's no `src/api/`, `src/models/`, etc. to navigate.
 
 > [!WARNING]
 > **Do not edit `main.py` unless you are a backend developer.** 
@@ -10,17 +10,21 @@ This directory contains the beating heart of the Gateway: `main.py`.
 
 ## What does `main.py` actually do?
 
-Unlike a traditional web application where every route (like `/weather` or `/stocks`) is hardcoded in Python, `main.py` is entirely dynamic.
+Unlike a traditional web app where each route (e.g. `/weather/current`) is a hardcoded Python function, every proxy route here is generated from config at startup.
 
-When you run this file (via Docker or `start.bat`), it performs the following lifecycle:
+Startup sequence:
 
-1. **Initialization:** It spins up a high-performance ASGI web server using FastAPI and Uvicorn.
-2. **Configuration Parse:** It reads the `config/gateway.yaml` file from the filesystem.
-3. **Dynamic Generation:** For every API defined in the YAML, it uses `httpx` (an asynchronous HTTP client) to dynamically spawn a reverse-proxy route in FastAPI.
-4. **Proxying:** When a request hits the Gateway, `main.py` intercepts it, parses any parameters, forwards the exact request to the external API, and seamlessly pipes the response back to the user.
+1. **Initialization:** FastAPI app is created, Uvicorn serves it as an ASGI app.
+2. **Config parse:** Reads `config/gateway.yaml`.
+3. **Route generation:** For each route entry in the YAML, registers a FastAPI endpoint that forwards matching requests to the configured `base_url` via a shared `httpx.AsyncClient`.
+4. **Proxying (per request):** Substitutes path params, forwards method/headers/body/query string to the upstream, applies retry logic (if `GET`/`HEAD`), and returns the upstream's status/body/headers back to the caller.
 
 ## Why abstract it?
 
-By forcing all configuration into a YAML file, we achieve true **Separation of Concerns**:
-- **DevOps/Users** can manage API endpoints and keys without knowing Python.
-- **Backend Developers** can upgrade the `main.py` engine (e.g., adding Redis caching, rate limiting, or global authentication) without breaking the user's API routes.
+Routes come from `config/gateway.yaml`, not hardcoded Python, so:
+- Adding or changing an upstream API doesn't require touching this file.
+- Changes to `main.py` (e.g. adding Redis caching — the one piece not yet built) affect every configured route at once, instead of being duplicated per-route.
+
+## What's already in here
+
+Auth, rate limiting, retries, metrics, structured logging, health probes, and graceful shutdown are all implemented in this file already — see the "Core SRE Features" section of the root [`README.md`](../README.md) for the current list and what each one does. This file won't re-list them; check there first so the two don't drift out of sync.

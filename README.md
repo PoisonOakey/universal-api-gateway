@@ -1,14 +1,12 @@
 # Universal API Gateway 🚀
 
-> A containerized, self-healing, plug-and-play API gateway. Instantly proxy and orchestrate external services via a simple YAML configuration.
+> A YAML-configured reverse proxy for third-party APIs, packaged as a Docker container with a Kubernetes deployment path. "Self-healing" here means what it means for any stateless K8s Deployment: crashed pods get restarted by Kubernetes, not by application logic.
 
 ---
 
 ## 🎯 What it does
 
-A **vendor-less, plug-and-play middleware brick**. It abstracts third-party APIs (Weather, Finance, AI, etc.) behind a robust FastAPI layer.
-
-No Python coding required. Define your APIs in `gateway.yaml` and the system instantly generates high-speed proxy routes.
+A reverse proxy that turns a YAML file into a set of API routes. Define an upstream API and its routes in `config/gateway.yaml`; the FastAPI app reads that file on startup and dynamically registers a matching proxy route for each entry — no Python code changes needed to add or remove an upstream.
 
 ```mermaid
 graph LR
@@ -32,6 +30,21 @@ graph LR
 
 ---
 
+## 🛠️ Core SRE Features
+
+- **Authentication**: Opt-in Bearer token check on proxy routes only. Unset `API_AUTH_TOKEN` = auth disabled (logs a startup warning). Set it, and requests must send `Authorization: Bearer <token>`. Health/metrics endpoints are never protected, so probes can't be locked out by a misconfigured token.
+- **Rate Limiting**: 100 req/min per route, per client IP, via `slowapi`. Returns `429 Too Many Requests` with `Retry-After`. **Caveat:** the counter is in-memory and per-process — with the K8s Deployment's 2 replicas, the effective ceiling is up to ~200/min split across pods, not a hard global 100/min.
+- **Idempotent Retries**: `GET`/`HEAD` requests retry up to 3 times (capped exponential backoff) on connection errors, timeouts, or `502`/`503`/`504` upstream responses. `POST`/`PUT`/`PATCH` are never retried, to avoid duplicating a write that may have already succeeded upstream.
+- **Prometheus Metrics**: `/metrics` endpoint exposing request count and latency histograms, labeled by the route *template* (e.g. `/api/dummy/products/{id}`) rather than the literal request path, so per-ID traffic doesn't blow up label cardinality.
+- **Graceful Shutdown**: The shared `httpx` client is opened and closed via a FastAPI `lifespan` handler, so in-flight connections are released cleanly on `SIGTERM`.
+- **Structured Logging**: Every request logs one line — `request_id`, `method`, `path`, `status`, `duration_ms` — to stdout.
+- **Health Probes**: `/healthz` (liveness, always 200 if the process is up) and `/readyz` (readiness, 503 if config failed to load or zero routes registered).
+- **Container Hardening**: Non-root user (`UID 1000`), read-only root filesystem, `allowPrivilegeEscalation: false`, all Linux capabilities dropped (K8s `securityContext`).
+
+See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for when/why each of these was added.
+
+---
+
 ## 📂 Repository Structure
 
 ```text
@@ -45,11 +58,27 @@ graph LR
 ├── 📁 src/
 │   └── 🐍 main.py            # Core Python proxy engine
 │
+├── 📁 tests/
+│   └── 🧪 test_api.py        # Pytest smoke suite (auth, probes, rate limit)
+│
 ├── 📁 docs/                  # Architecture & troubleshooting guides
 ├── ⚙️ start.bat              # One-click local startup
+├── 📄 .env.example           # Environment variable template — copy to .env
+├── 📄 requirements.txt       # Runtime dependencies (pinned)
+├── 📄 requirements-dev.txt   # Test-only dependencies (not shipped in the image)
 ├── 🐳 Dockerfile
 └── 🐳 docker-compose.yml
 ```
+
+### Environment Variables
+
+| Variable | Default | Effect |
+|---|---|---|
+| `CONFIG_PATH` | `config/gateway.yaml` | Path to the gateway config file. |
+| `ALLOWED_ORIGINS` | `http://localhost,http://localhost:30000` | Comma-separated CORS allow-list. |
+| `API_AUTH_TOKEN` | *(unset)* | Bearer token required on proxy routes. Unset = auth disabled (startup warning logged). |
+
+Copy `.env.example` to `.env` and edit it — `docker-compose.yml` loads it automatically.
 
 ---
 
@@ -68,7 +97,7 @@ gateways:
         method: "GET"
         target_path: "/forecast?latitude=52.52&longitude=13.41&current=temperature_2m"
 ```
-Automatically generates a secure proxy route at: `http://localhost:30000/api/weather/current`
+Registers a proxy route at `http://localhost:30000/api/weather/current`. It's open by default — set `API_AUTH_TOKEN` (see [Environment Variables](#environment-variables)) if it needs to require a Bearer token.
 
 ---
 
@@ -77,8 +106,9 @@ Automatically generates a secure proxy route at: `http://localhost:30000/api/wea
 ### Local Development (Easy Mode)
 1. Ensure **Docker Desktop** is running.
 2. Edit `config/gateway.yaml` with your target APIs.
-3. Run `start.bat`.
-4. Visit `http://localhost:30000/docs` for the generated Swagger UI.
+3. Optional: copy `.env.example` to `.env` and set `API_AUTH_TOKEN` if you want proxy routes protected.
+4. Run `start.bat`.
+5. Visit `http://localhost:30000/docs` for the generated Swagger UI, or `http://localhost:30000/metrics` for Prometheus metrics.
 
 ### Production (Kubernetes)
 For production clusters, use the raw manifests in `enterprise-k8s/`.
@@ -108,4 +138,8 @@ kubectl kustomize .
 
 ## ⚙️ CI/CD Pipeline
 
-This repository utilizes **GitHub Actions** for continuous integration. On every push to the `main` branch, an automated pipeline verifies that the Docker image builds successfully, ensuring the gateway remains in a deployable state at all times.
+GitHub Actions runs on every push/PR to `main`: install dependencies → run the `pytest` smoke suite (`tests/test_api.py`) → build the Docker image (dry run, not pushed). A failing test blocks the build step. Run the same suite locally with:
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```

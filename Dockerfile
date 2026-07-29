@@ -1,7 +1,10 @@
 # ─────────────────────────────────────────────
 #  Stage 1: Lightweight Python image
 # ─────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.12.4-slim
+
+# Create a non-root user
+RUN useradd -m -u 1000 gateway_user
 
 # ─────────────────────────────────────────────
 #  Set working directory inside the container
@@ -18,6 +21,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 #  Copy only the API source code we wrote
 # ─────────────────────────────────────────────
 COPY src/ .
+
+# Ensure the non-root user owns the app directory
+RUN chown -R gateway_user:gateway_user /app
+
+# Switch to non-root user
+USER 1000
 
 # ─────────────────────────────────────────────
 #  Expose port and start the server

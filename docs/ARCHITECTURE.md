@@ -35,12 +35,12 @@ graph TD
 This is the **Control Plane**. It contains the `gateway.yaml` file. This layer exists so that normal users never have to touch code. They define what APIs they want to use here, and the rest of the system obeys.
 
 ### Layer 2: Execution Engine (`src/`)
-This is the **Data Plane**. It contains `main.py`, the dynamic proxy engine written in Python (FastAPI). It blindly reads the configuration layer and executes the HTTP proxying at ultra-high speeds. Backend developers work in this layer to optimize performance (like adding cache).
+This is the **Data Plane**. It contains `main.py` — reads the config layer and generates the proxy routes from it. Backend work here means: connection lifecycle (the shared `httpx` client), timeouts/retries, request logging and metrics, auth/CORS, and — not yet built — response caching.
 
 ### Layer 3: Infrastructure (`enterprise-k8s/` & Docker)
 This is the **Hosting Plane**. It determines *where* the engine runs. 
 - The `docker-compose.yml` (and `start.bat`) provide an easy local hosting environment.
-- The `enterprise-k8s/` folder provides the declarative YAML needed to deploy the engine to a production Kubernetes cluster.
+- The `enterprise-k8s/` folder provides the declarative YAML needed to deploy the engine to a production Kubernetes cluster (with strict non-root and read-only filesystem security constraints).
 
 ---
 
@@ -49,6 +49,9 @@ This is the **Hosting Plane**. It determines *where* the engine runs.
 When a piece of external automation (like n8n or a cron job) makes a request to the Gateway, this is the exact flow:
 
 1. **Ingress:** The request hits the Kubernetes `NodePort` (or Docker port) at `:30000`.
-2. **Routing:** FastAPI matches the URL path against the routes it dynamically generated during startup.
-3. **Proxy:** The `httpx` async client intercepts the request, injects any necessary API keys, and forwards the payload to the external provider (e.g., Open-Meteo, Yahoo Finance).
-4. **Egress:** The response is piped directly back to the automation tool.
+2. **Routing & CORS:** FastAPI handles CORS preflight checks and matches the URL path against the routes it dynamically generated during startup.
+3. **Authentication:** For proxy routes, FastAPI verifies the `Authorization: Bearer <token>` header against the `API_AUTH_TOKEN` environment variable. If missing or invalid, it rejects the request (401).
+4. **Rate Limiting:** The `slowapi` decorator checks the client IP against the per-route limit (`100/min`). If exceeded, it rejects the request with a `429 Too Many Requests`.
+5. **Proxy & Retry:** The `httpx` async client intercepts the request and forwards the payload to the external provider. If the upstream fails with a `502`, `503`, or `504` on a safe method (`GET`/`HEAD`), `tenacity` retries the request using exponential backoff.
+6. **Metrics:** Latency and status codes are recorded into Prometheus metrics registries for real-time observability.
+7. **Egress:** The upstream response is piped directly back to the automation tool.

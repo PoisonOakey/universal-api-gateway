@@ -22,18 +22,33 @@ spec:
         env:
         - name: PORT
           value: "8000"
+        - name: API_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: gateway-auth
+              key: API_AUTH_TOKEN
         volumeMounts:
         - name: config-volume
           mountPath: /app/config
+        - name: tmp-volume
+          mountPath: /tmp
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
         livenessProbe:
           httpGet:
-            path: /
+            path: /healthz
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
         readinessProbe:
           httpGet:
-            path: /
+            path: /readyz
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10
@@ -48,3 +63,5 @@ spec:
       - name: config-volume
         configMap:
           name: gateway-config
+      - name: tmp-volume
+        emptyDir: {}

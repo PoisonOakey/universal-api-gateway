@@ -102,18 +102,44 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 **Root Cause:** The API's CORS middleware is not allowing the frontend's origin.
 
-**Current Config (allows all origins for local dev):**
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
+**Current Config:**
+The gateway reads from the `ALLOWED_ORIGINS` environment variable (defaults to `http://localhost,http://localhost:30000`).
 
-> [!WARNING]
-> `allow_origins=["*"]` is fine for local development but must be locked down to specific domains before any production deployment.
+**Fix:** Ensure your frontend's domain is explicitly added to the `ALLOWED_ORIGINS` environment variable. Note that `allow_credentials` is strictly disabled for security.
+
+---
+
+### 401 Unauthorized
+
+**Symptoms:** The gateway returns an HTTP 401 Unauthorized when hitting a proxy route.
+
+**Root Cause:** You did not provide the correct Bearer token in the `Authorization` header.
+
+**Fix:** Ensure your request includes `Authorization: Bearer <your-token>`. The expected token is defined by the `API_AUTH_TOKEN` environment variable. If you don't want auth (local dev only), do not set `API_AUTH_TOKEN`.
+
+---
+
+### 502 Bad Gateway vs 504 Gateway Timeout
+
+**Symptoms:** The gateway returns an HTTP 502 or 504 when proxying a request to an upstream service.
+
+**Root Cause:**
+- **504 Gateway Timeout:** The gateway took too long to connect to or read from the upstream service (currently hardcoded to a 30s read/write timeout).
+- **502 Bad Gateway:** The upstream service actively refused the connection, failed to resolve DNS, or dropped the request unexpectedly.
+
+**Fix:** Check the Gateway's structured logs in the console (you can grep for `level=ERROR` to filter out healthy traffic). Every request logs a `request_id`. Look for the error log matching that ID to see the exact `httpx` exception that caused the failure (this is kept hidden from the client response for security). Note that if the upstream failed with a 502/503/504 on a `GET` request, the gateway will automatically retry 3 times with exponential backoff before returning the final error to you.
+
+---
+
+### 429 Too Many Requests
+
+**Symptoms:** The gateway returns an HTTP 429 Too Many Requests with headers like `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `Retry-After`.
+
+**Root Cause:** The client has sent more than 100 requests in a single minute to a specific proxy route. The built-in `slowapi` rate limiter blocked the request to prevent upstream abuse.
+
+**Fix:** Wait for the `Retry-After` duration (or until the 1-minute window expires) before sending more requests. Note that the 100/min limit applies per route, so other routes will still be accessible.
+
+**Multi-replica note:** the rate-limit counter is in-memory and per-pod. In the K8s Deployment (`replicas: 2`), a client's requests can land on either pod, so the *effective* ceiling is up to ~200/min rather than a hard 100/min — expect a request to occasionally get through when you thought the limit should have already been hit.
 
 ---
 
