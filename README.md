@@ -32,14 +32,16 @@ graph LR
 
 ## 🛠️ Core SRE Features
 
-- **Authentication**: Opt-in Bearer token protection for proxy routes (`API_AUTH_TOKEN`). Health probes remain safely unauthenticated.
-- **Rate Limiting**: 100 req/min per route. Returns standard `429 Too Many Requests` (in-memory, scaled per pod).
-- **Idempotent Retries**: Automatic exponential backoff (up to 3x) for `GET`/`HEAD` requests on `502`/`503`/`504` upstream failures.
-- **Prometheus Metrics**: High-cardinality safe `/metrics` endpoint tracking request latency and volume natively.
-- **Graceful Shutdown**: Zero-downtime termination via FastAPI `lifespan` connection management.
-- **Structured Logging**: Built-in key/value observability (`request_id`, `method`, `path`, `status`, `duration_ms`).
-- **Health Probes**: Explicit `/healthz` (liveness) and `/readyz` (readiness) endpoints.
-- **Container Hardening**: Runs as non-root (`UID 1000`) on a read-only filesystem with dropped capabilities.
+| Feature | Description |
+|---|---|
+| **Authentication** | Opt-in Bearer token protection for proxy routes (`API_AUTH_TOKEN`). Health probes remain safely unauthenticated. |
+| **Rate Limiting** | 100 req/min per route. Returns standard `429 Too Many Requests` (in-memory, scaled per pod). |
+| **Idempotent Retries** | Automatic exponential backoff (up to 3x) for `GET`/`HEAD` requests on `502`/`503`/`504` upstream failures. |
+| **Prometheus Metrics** | High-cardinality safe `/metrics` endpoint tracking request latency and volume natively. |
+| **Graceful Shutdown** | Zero-downtime termination via FastAPI `lifespan` connection management. |
+| **Structured Logging** | Built-in key/value observability (`request_id`, `method`, `path`, `status`, `duration_ms`). |
+| **Health Probes** | Explicit `/healthz` (liveness) and `/readyz` (readiness) endpoints. |
+| **Container Hardening** | Runs as non-root (`UID 1000`) on a read-only filesystem with dropped capabilities. |
 
 See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for detailed implementation notes.
 
