@@ -4,6 +4,13 @@ All notable changes to this project are documented here.
 
 ---
 
+## v0.7.1 — CI Import Fix (2026-07-29)
+
+### Fixed
+- **CI test collection:** `pytest` in GitHub Actions failed with `ModuleNotFoundError: No module named 'src'`. Cause: the CI workflow invokes the bare `pytest` command, which — unlike `python -m pytest` — does not add the repo root to `sys.path`, so `from src.main import app` in `tests/test_api.py` couldn't resolve. Fixed by adding `pytest.ini` with `pythonpath = .`, which makes the repo root importable for every invocation style (bare `pytest`, `python -m pytest`, CI, local) without adding a packaging system (`pyproject.toml`/`setup.py`) or a `sys.path` hack in the tests themselves.
+
+---
+
 ## v0.7.0 — Advanced SRE Capabilities (2026-07-29)
 
 ### Added

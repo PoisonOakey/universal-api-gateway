@@ -32,16 +32,16 @@ graph LR
 
 ## 🛠️ Core SRE Features
 
-- **Authentication**: Opt-in Bearer token check on proxy routes only. Unset `API_AUTH_TOKEN` = auth disabled (logs a startup warning). Set it, and requests must send `Authorization: Bearer <token>`. Health/metrics endpoints are never protected, so probes can't be locked out by a misconfigured token.
-- **Rate Limiting**: 100 req/min per route, per client IP, via `slowapi`. Returns `429 Too Many Requests` with `Retry-After`. **Caveat:** the counter is in-memory and per-process — with the K8s Deployment's 2 replicas, the effective ceiling is up to ~200/min split across pods, not a hard global 100/min.
-- **Idempotent Retries**: `GET`/`HEAD` requests retry up to 3 times (capped exponential backoff) on connection errors, timeouts, or `502`/`503`/`504` upstream responses. `POST`/`PUT`/`PATCH` are never retried, to avoid duplicating a write that may have already succeeded upstream.
-- **Prometheus Metrics**: `/metrics` endpoint exposing request count and latency histograms, labeled by the route *template* (e.g. `/api/dummy/products/{id}`) rather than the literal request path, so per-ID traffic doesn't blow up label cardinality.
-- **Graceful Shutdown**: The shared `httpx` client is opened and closed via a FastAPI `lifespan` handler, so in-flight connections are released cleanly on `SIGTERM`.
-- **Structured Logging**: Every request logs one line — `request_id`, `method`, `path`, `status`, `duration_ms` — to stdout.
-- **Health Probes**: `/healthz` (liveness, always 200 if the process is up) and `/readyz` (readiness, 503 if config failed to load or zero routes registered).
-- **Container Hardening**: Non-root user (`UID 1000`), read-only root filesystem, `allowPrivilegeEscalation: false`, all Linux capabilities dropped (K8s `securityContext`).
+- **Authentication**: Opt-in Bearer token protection for proxy routes (`API_AUTH_TOKEN`). Health probes remain safely unauthenticated.
+- **Rate Limiting**: 100 req/min per route. Returns standard `429 Too Many Requests` (in-memory, scaled per pod).
+- **Idempotent Retries**: Automatic exponential backoff (up to 3x) for `GET`/`HEAD` requests on `502`/`503`/`504` upstream failures.
+- **Prometheus Metrics**: High-cardinality safe `/metrics` endpoint tracking request latency and volume natively.
+- **Graceful Shutdown**: Zero-downtime termination via FastAPI `lifespan` connection management.
+- **Structured Logging**: Built-in key/value observability (`request_id`, `method`, `path`, `status`, `duration_ms`).
+- **Health Probes**: Explicit `/healthz` (liveness) and `/readyz` (readiness) endpoints.
+- **Container Hardening**: Runs as non-root (`UID 1000`) on a read-only filesystem with dropped capabilities.
 
-See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for when/why each of these was added.
+See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for detailed implementation notes.
 
 ---
 
