@@ -133,6 +133,7 @@ kubectl kustomize .
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
 - [Changelog](docs/CHANGELOG.md) — Release notes.
+- [Future Roadmap](docs/FUTURE_ROADMAP.md) — Upcoming enterprise features (HPA, PDB, CI/CD scanning).
 
 ---
 
