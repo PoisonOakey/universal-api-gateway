@@ -34,7 +34,7 @@ graph LR
 
 ---
 
-## 🛠️ Core SRE Features
+## 🛠️ Key Engineering Decisions
 
 | Feature | Description |
 |---|---|
