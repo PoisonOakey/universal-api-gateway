@@ -10,7 +10,7 @@
 
 ## 🎯 What it does
 
-A reverse proxy that turns a YAML file into a set of API routes. Define an upstream API and its routes in `config/gateway.yaml`; the FastAPI app reads that file on startup and dynamically registers a matching proxy route for each entry — no Python code changes needed to add or remove an upstream.
+A reverse proxy that turns a YAML file into a set of API routes. List the APIs you want to reach in `config/gateway.yaml`, and on startup the gateway creates a matching endpoint on itself for each one. Adding or removing an API means editing that file and restarting — no Python involved.
 
 ```mermaid
 graph LR
