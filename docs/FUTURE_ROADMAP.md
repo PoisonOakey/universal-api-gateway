@@ -34,6 +34,7 @@ Known gaps, recorded so the repository does not imply otherwise:
 
 | Gap | What this means today |
 |---|---|
+| **The manifests have not been applied to a running cluster** | They are checked by rendering them with `kubectl kustomize`, which validates the YAML but never contacts a cluster. Pod restarts, probe behaviour, and Service load balancing are what the manifests declare, not behaviour that has been observed. |
 | **No PodDisruptionBudget or anti-affinity** | Two replicas protect against a pod crash, not a node failure. On a single-node cluster both pods share a node. This is not high availability. |
 | **Rate limiting is per-pod and in memory** | `slowapi` holds counters in process. At 2 replicas the effective limit is 200 req/min, not the configured 100. A shared store such as Redis would be needed to make the limit cluster-wide. |
 | **Image tag is `latest` on the local path** | The root kustomization relies on `universal-api-gateway:latest` with `imagePullPolicy: IfNotPresent`. Only the GKE overlay pins a specific SHA tag. |
