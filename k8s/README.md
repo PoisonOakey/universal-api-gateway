@@ -1,14 +1,14 @@
-# Enterprise Kubernetes Architecture
+# Kubernetes Deployment
 
-If you are reading this, you have likely bypassed the local `docker-compose` setup and are preparing to deploy this Gateway to a true Kubernetes cluster. 
+If you are reading this, you have likely bypassed the local `docker-compose` setup and are preparing to deploy this Gateway to a Kubernetes cluster.
 
-This directory contains the **Infrastructure as Code (IaC)** required to spin up a highly available, self-healing, configuration-driven proxy.
+This directory contains the **Infrastructure as Code (IaC)** required to run the config-driven proxy as a Deployment that Kubernetes restarts if a pod dies.
 
 ---
 
 ## 🏗️ The Architecture
 
-How does a single YAML file on your laptop turn into a clustered production API? Here is exactly what happens when you run `kubectl apply -k .`
+How does a single YAML file on your laptop turn into a running service in a cluster? Here is exactly what happens when you run `kubectl apply -k .`
 
 ```mermaid
 graph TD
@@ -16,7 +16,7 @@ graph TD
     GatewayYaml["📄 config/gateway.yaml\n(External User Config)"]
     Kustomize["⚙️ kustomization.yaml\n(Root Orchestrator)"]
     
-    subgraph "enterprise-k8s/ (K8s Resources)"
+    subgraph "k8s/ (K8s Resources)"
         DeployYaml["📄 api-deployment.yaml"]
         SvcYaml["📄 services.yaml"]
     end
@@ -68,7 +68,7 @@ graph TD
 ### 2. `api-deployment.yaml`
 **Why we use it:** Bare containers crash. Deployments don't.
 **What it does:** 
-- Requests exactly 2 replicas (Pods) to ensure high availability.
+- Requests 2 replicas (Pods) so one pod crashing does not drop all traffic. This is not high availability: there is no `PodDisruptionBudget` and no anti-affinity, so on a single-node cluster both pods share a node and a node failure takes out the service. Both are on the [roadmap](../docs/FUTURE_ROADMAP.md).
 - Mounts the Kustomize-generated ConfigMap directly into the Pod's filesystem at `/app/config`.
 - Defines strict `liveness` and `readiness` probes. If a FastAPI instance deadlocks, Kubernetes will automatically shoot it in the head and spin up a fresh one.
 

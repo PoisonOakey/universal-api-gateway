@@ -42,7 +42,7 @@ graph LR
 | **Rate Limiting** | 100 req/min per route. Returns standard `429 Too Many Requests` (in-memory, scaled per pod). |
 | **Idempotent Retries** | Automatic exponential backoff (up to 3x) for `GET`/`HEAD` requests on `502`/`503`/`504` upstream failures. |
 | **Prometheus Metrics** | High-cardinality safe `/metrics` endpoint tracking request latency and volume natively. |
-| **Graceful Shutdown** | Zero-downtime termination via FastAPI `lifespan` connection management. |
+| **Graceful Shutdown** | The shared HTTP client is closed on FastAPI `lifespan` exit, releasing in-flight upstream connections. |
 | **Structured Logging** | Built-in key/value observability (`request_id`, `method`, `path`, `status`, `duration_ms`). |
 | **Health Probes** | Explicit `/healthz` (liveness) and `/readyz` (readiness) endpoints. |
 | **Container Hardening** | Runs as non-root (`UID 1000`) on a read-only filesystem with dropped capabilities. |
@@ -59,7 +59,7 @@ See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for detailed implementation notes.
 ├── 📁 config/
 │   └── 📄 gateway.yaml       # 👈 99% of your edits happen here
 │
-├── 📁 enterprise-k8s/        # Kubernetes manifests for production
+├── 📁 k8s/                   # Kubernetes manifests
 │
 ├── 📁 src/
 │   └── 🐍 main.py            # Core Python proxy engine
@@ -116,8 +116,8 @@ Registers a proxy route at `http://localhost:30000/api/weather/current`. It's op
 4. Run `start.bat`.
 5. Visit `http://localhost:30000/docs` for the generated Swagger UI, or `http://localhost:30000/metrics` for Prometheus metrics.
 
-### Production (Kubernetes)
-For production clusters, use the raw manifests in `enterprise-k8s/`.
+### Kubernetes
+To run it on a cluster, use the raw manifests in `k8s/`.
 
 ```bash
 docker build -t universal-api-gateway:latest .
@@ -135,11 +135,11 @@ kubectl kustomize .
 
 ## 📚 Documentation
 - [Architecture Overview](docs/ARCHITECTURE.md) — How the 3-Tier engine is mapped.
-- [K8s Infrastructure](enterprise-k8s/README.md) — How K8s is being utilized here.
+- [K8s Infrastructure](k8s/README.md) — How K8s is being utilized here.
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
 - [Changelog](docs/CHANGELOG.md) — Release notes.
-- [Future Roadmap](docs/FUTURE_ROADMAP.md) — Upcoming enterprise features (HPA, PDB, CI/CD scanning).
+- [Future Roadmap](docs/FUTURE_ROADMAP.md) — Planned features, and what is deliberately not built yet.
 
 ---
 

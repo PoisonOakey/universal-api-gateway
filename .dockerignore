@@ -19,7 +19,7 @@ Thumbs.db
 
 # Documentation & Configs (Exclude from container)
 docs/
-enterprise-k8s/
+k8s/
 *.md
 start.bat
 docker-compose.yml

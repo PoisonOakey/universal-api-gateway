@@ -21,7 +21,7 @@ graph TD
     
     subgraph "Layer 3: Infrastructure (Deployment)"
         Docker["🐳 Docker / start.bat\n(Local Easy Mode)"]
-        K8s["☸️ enterprise-k8s/\n(Production Cluster)"]
+        K8s["☸️ k8s/\n(Kubernetes)"]
     end
 
     %% Flow
@@ -37,10 +37,10 @@ This is the **Control Plane**. It contains the `gateway.yaml` file. This layer e
 ### Layer 2: Execution Engine (`src/`)
 This is the **Data Plane**. It contains `main.py` — reads the config layer and generates the proxy routes from it. Backend work here means: connection lifecycle (the shared `httpx` client), timeouts/retries, request logging and metrics, auth/CORS, and — not yet built — response caching.
 
-### Layer 3: Infrastructure (`enterprise-k8s/` & Docker)
+### Layer 3: Infrastructure (`k8s/` & Docker)
 This is the **Hosting Plane**. It determines *where* the engine runs. 
 - The `docker-compose.yml` (and `start.bat`) provide an easy local hosting environment.
-- The `enterprise-k8s/` folder provides the declarative YAML needed to deploy the engine to a production Kubernetes cluster (with strict non-root and read-only filesystem security constraints).
+- The `k8s/` folder provides the declarative YAML needed to deploy the engine to a Kubernetes cluster (with strict non-root and read-only filesystem security constraints).
 
 ---
 
