@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Universal API Gateway",
-    description="A containerized, self-healing, config-driven API gateway.",
+    description="A containerized, config-driven API gateway.",
     version="0.2.0",
     lifespan=lifespan,
 )
@@ -143,11 +143,14 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
             target_url = f"{base_url.rstrip('/')}/{formatted_target.lstrip('/')}"
             
             # Forward the request
+            # Never forward the caller's credentials to the upstream: the bearer
+            # token authenticates the caller to this gateway, not to the API behind it.
+            drop_headers = ("host", "content-length", "authorization", "cookie")
             req_kwargs = {
                 "method": method,
                 "url": target_url,
                 "params": request.query_params,
-                "headers": {k: v for k, v in request.headers.items() if k.lower() not in ("host", "content-length")}
+                "headers": {k: v for k, v in request.headers.items() if k.lower() not in drop_headers}
             }
             if method in ["POST", "PUT", "PATCH"]:
                 body = await request.body()

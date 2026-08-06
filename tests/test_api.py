@@ -44,6 +44,28 @@ async def test_proxy_success():
                 assert res.status_code == 200
 
 @pytest.mark.asyncio
+async def test_caller_credentials_not_forwarded_upstream():
+    """The gateway's bearer token authenticates the caller to us, not to the upstream API."""
+    import httpx
+    app.state.client = httpx.AsyncClient()
+    with patch("src.main.API_AUTH_TOKEN", "test-token"):
+        with patch.object(app.state.client, "request", new_callable=AsyncMock) as mock_request:
+            mock_request.return_value.status_code = 200
+            mock_request.return_value.content = b'{"success": true}'
+            mock_request.return_value.headers = {}
+
+            async with AsyncClient(transport=ASGITransport(app=app, client=("127.0.0.1", 12345)), base_url="http://test") as ac:
+                await ac.get(
+                    "/api/weather/weather/current",
+                    headers={"Authorization": "Bearer test-token", "Cookie": "session=secret"},
+                )
+
+            forwarded = {k.lower() for k in mock_request.call_args.kwargs["headers"]}
+            assert "authorization" not in forwarded
+            assert "cookie" not in forwarded
+
+
+@pytest.mark.asyncio
 async def test_rate_limiting():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Hit healthz 101 times to prove it's NOT rate limited
