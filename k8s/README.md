@@ -4,6 +4,8 @@ If you are reading this, you have likely bypassed the local `docker-compose` set
 
 This directory contains the **Infrastructure as Code (IaC)** required to run the config-driven proxy as a Deployment that Kubernetes restarts if a pod dies.
 
+> **These manifests have not been applied to a running cluster.** They are validated by rendering them with `kubectl kustomize`, which checks the YAML without contacting a cluster. What follows describes what the manifests declare, not behaviour that has been observed. See [Not Built Yet](../docs/FUTURE_ROADMAP.md).
+
 ---
 
 ## 🏗️ The Architecture
