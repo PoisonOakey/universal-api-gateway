@@ -34,6 +34,22 @@ graph LR
 
 ---
 
+## 📸 The Result
+
+Both captures below come from `docker compose up` on a local machine.
+
+![Swagger UI listing the routes generated from config/gateway.yaml](docs/screenshots/docker-swagger.png)
+
+Every route under **Weather** and **Dummy** exists because `config/gateway.yaml` declares it. No Python was written for any of them — the file is read at startup and each entry becomes an endpoint, which is the whole point of the gateway. `/healthz`, `/readyz`, and `/metrics` are built in and unaffected by the config.
+
+![Terminal output showing health, auth rejection, two live proxied calls, and the metrics counter](docs/screenshots/docker-terminal.png)
+
+The gateway answers `/healthz`, rejects an unauthenticated proxy call with `401`, then serves live data from Open-Meteo and dummyjson.com when a valid bearer token is supplied. `gateway_requests_total` counts all of it, labelled by method, path, and status — including the rejection. A metric that only counts successes tells you nothing on the day something breaks.
+
+> **Scope of these captures.** They show the application running in a container. They are not evidence about Kubernetes or any cloud provider: the manifests in `k8s/` and the Terraform in `terraform/` have not been applied to a running cluster. See [Not Built Yet](docs/FUTURE_ROADMAP.md).
+
+---
+
 ## 🛠️ Key Engineering Decisions
 
 | Feature | Description |
