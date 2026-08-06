@@ -20,7 +20,9 @@ resource "google_container_cluster" "primary" {
   # Explicitly disable the default node pool
   remove_default_node_pool = true
   initial_node_count       = 1
-  
+
+  ip_allocation_policy {}
+
   deletion_protection = false
 }
 
@@ -32,7 +34,7 @@ resource "google_container_node_pool" "primary_nodes" {
 
   node_config {
     machine_type = var.machine_type
-    
+
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",

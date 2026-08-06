@@ -36,7 +36,8 @@ Known gaps, recorded so the repository does not imply otherwise:
 |---|---|
 | **No PodDisruptionBudget or anti-affinity** | Two replicas protect against a pod crash, not a node failure. On a single-node cluster both pods share a node. This is not high availability. |
 | **Rate limiting is per-pod and in memory** | `slowapi` holds counters in process. At 2 replicas the effective limit is 200 req/min, not the configured 100. A shared store such as Redis would be needed to make the limit cluster-wide. |
-
+| **Image tag is `latest` on the local path** | The root kustomization relies on `universal-api-gateway:latest` with `imagePullPolicy: IfNotPresent`. Only the GKE overlay pins a specific SHA tag. |
+| **GKE overlay requires pushed commits** | The GKE overlay uses a remote base. Local edits to configuration or manifests will not apply to the cluster until they are pushed to GitHub. |
 | **No Ingress or TLS** | Exposure is a `NodePort` on 30000. Traffic is plain HTTP. |
 | **No config hot-reload** | `config/gateway.yaml` is read once at startup. Changing routes requires a pod restart. |
 | **Terminating pods are not drained** | There is no `preStop` hook or tuned `terminationGracePeriodSeconds`, so Kubernetes may route to a pod that is shutting down. |

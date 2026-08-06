@@ -8,7 +8,7 @@ Provisions a throwaway GKE cluster for testing the Universal API Gateway.
 - A separate node pool with 2 `e2-small` nodes.
 
 ## Cost Estimate
-An `e2-small` node in `asia-southeast1` costs roughly ~$0.015/hour. The control plane management fee is ~$0.10/hour. Total cost while running is approximately ~$0.13/hour.
+An `e2-small` node in `asia-southeast1` costs roughly ~$0.015/hour, plus 2 × 100GB default boot disks. The control plane management fee is ~$0.10/hour (note that the GKE free tier covers one zonal control plane per billing account). Total cost while running is approximately ~$0.13/hour (or ~$0.03/hour if the free tier applies).
 
 ## How to use
 1. Set your project ID:
