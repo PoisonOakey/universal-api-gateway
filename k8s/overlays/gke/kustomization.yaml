@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - github.com/PoisonOakey/universal-api-gateway//?ref=main
+
+images:
+  - name: universal-api-gateway
+    newName: ghcr.io/poisonoakey/universal-api-gateway
+    newTag: REPLACE_WITH_SHA
+
+patches:
+  - target:
+      kind: Service
+      name: universal-api-gateway
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: LoadBalancer
+      - op: remove
+        path: /spec/ports/0/nodePort
