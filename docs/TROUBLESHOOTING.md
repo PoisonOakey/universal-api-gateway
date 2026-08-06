@@ -160,6 +160,23 @@ And make sure you built the image inside the same Docker context that Kubernetes
 
 ---
 
+### `cycle detected` when rendering an overlay
+
+**Symptoms:** `kubectl kustomize k8s/overlays/<name>` fails with *"cycle detected: candidate root '<repo>' contains visited root '<repo>/k8s/overlays/<name>'"*.
+
+**Root Cause:** The overlay lives inside the directory tree of the base it references. Kustomize refuses this regardless of `--load-restrictor`, which only governs file loading, not root cycles.
+
+**Fix:** Point the overlay at a remote base instead of a relative parent, pinned to a commit so the render is reproducible:
+```yaml
+resources:
+  - github.com/<owner>/<repo>//?ref=<full-sha>
+```
+Moving the base into a sibling directory does not help here: the root `kustomization.yaml` generates a ConfigMap from `config/gateway.yaml`, which sits outside any `k8s/` subdirectory, so the kustomization root has to stay at the repository root.
+
+> The trade-off is that the overlay renders what is on GitHub, not your working tree. Local edits do not apply until pushed.
+
+---
+
 ### Cannot reach the service from `localhost`
 
 **Root Cause:** Kubernetes services are only reachable inside the cluster by default.
@@ -169,3 +186,73 @@ And make sure you built the image inside the same Docker context that Kubernetes
 kubectl port-forward svc/universal-api-gateway 30000:8000 -n gateway-system
 ```
 Then access `http://localhost:30000/docs`.
+
+---
+
+## Cloud
+
+Notes from actually deploying this. Both providers failed before either succeeded, and neither failure was visible from the Terraform.
+
+### Azure: "The VM size of Standard_B2s is not allowed in your subscription"
+
+**Symptoms:** `terraform apply` creates the resource group, then fails on the cluster with HTTP 400. The error lists "available" sizes that are all M-series, HB, FX or GPU — nothing small.
+
+**Root Cause:** Trial subscriptions restrict the cheap general-purpose families. This is not a quota problem: `az vm list-usage` showed 4 vCPUs free in the `Standard BS` family while `Standard_B2s` itself was unavailable. It is also not regional — `Standard_B2s` was restricted in every region checked.
+
+**Fix:** Find a size the subscription can actually create, then use it:
+```powershell
+az vm list-skus --location southeastasia --resource-type virtualMachines --all --output json |
+  ConvertFrom-Json | Where-Object { $_.restrictions.Count -eq 0 } | Select-Object -ExpandProperty name
+```
+On a trial subscription this returned 197 of 1271 SKUs. `Standard_DC2s_v3` (2 vCPU) works and two of them exactly fill the 4 vCPU regional quota.
+
+> `terraform validate` and `terraform plan` both pass against a config that cannot apply. Neither contacts the compute API to check SKU availability.
+
+---
+
+### Azure: confirm you cannot be charged before applying
+
+A new subscription has a spending limit that **disables** the subscription when trial credit runs out, rather than charging the card. Verify it is on:
+```bash
+az rest --method get \
+  --url "https://management.azure.com/subscriptions/<id>?api-version=2022-12-01" \
+  --query "{quota:subscriptionPolicies.quotaId, limit:subscriptionPolicies.spendingLimit}"
+```
+`FreeTrial_*` with `spendingLimit: On` means charges are structurally impossible. Anything else means real money.
+
+---
+
+### GCP: `OR_BACR2_44` when setting up billing
+
+**Symptoms:** *"Billing setup can't be completed. This action couldn't be completed. [OR_BACR2_44]"*
+
+**Root Cause:** A provider-side block, usually a card Google declines or an account flagged from a previous trial. Nothing in the project or the Terraform causes it.
+
+**Diagnosis:** Check whether a usable billing account exists at all:
+```bash
+gcloud auth application-default print-access-token   # then:
+curl -s -H "Authorization: Bearer $TOKEN" https://cloudbilling.googleapis.com/v1/billingAccounts
+```
+`"open": false` means the account is closed and cannot be attached to any project. Creating a new project does not help — billing attaches to the billing account, not the project.
+
+**Fix:** Google Cloud Billing Support resolves these; there is no self-service path. Otherwise use another provider.
+
+---
+
+### `az` or `terraform` "not recognized" straight after install
+
+**Root Cause:** `winget` modifies `PATH` for new processes only.
+
+**Fix:** Close the terminal and open a new one. If a script must not depend on `PATH`, call the binary directly — `C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd`.
+
+---
+
+### Confirming a cluster is really gone
+
+`terraform destroy` only removes what it created. AKS also creates a node resource group it does not own, and a `LoadBalancer` Service creates a public IP owned by Kubernetes rather than Terraform. Check the subscription directly:
+```bash
+az group list --output table
+az network public-ip list --output table
+az aks list --output table
+```
+A lone `NetworkWatcherRG` is created automatically by Azure and carries no charge. Anything else is still billing.
