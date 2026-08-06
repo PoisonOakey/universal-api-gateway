@@ -1,30 +1,21 @@
 # Future Roadmap & Hardening
 
-The current architecture establishes a config-driven and observable API Gateway engine. This document outlines what comes next, shifting focus from the application's internal correctness to the surrounding infrastructure and lifecycle automation.
-
-The following items would take this gateway from a baseline Kubernetes Deployment to an autoscaling, managed workload.
+Two tables. **Planned** is a tracker — delete a row once it ships. **Not Built Yet** records what the repository does not do, so nothing here implies otherwise.
 
 ---
 
-## 1. Automated Elasticity (HPA)
-**Objective**: Dynamically scale the number of gateway pods based on live traffic and resource consumption.
-- **Implementation**: Introduce a Kubernetes `HorizontalPodAutoscaler` (HPA) manifest.
-- **Details**: Configure the HPA to scale replicas from a minimum of 2 up to a maximum of 10, triggering a scale-up whenever average CPU utilization exceeds 75% or memory approaches limits.
+## Planned
 
-## 2. High Availability Guarantees (PDB)
-**Objective**: Prevent accidental downtime during cluster maintenance or node upgrades.
-- **Implementation**: Introduce a Kubernetes `PodDisruptionBudget` (PDB) manifest.
-- **Details**: Enforce `minAvailable: 1` (or `maxUnavailable: 1`) to ensure that Kubernetes never evicts all gateway pods simultaneously during voluntary node drains.
-
-## 3. Automated Dependency Management
-**Objective**: Eliminate technical debt and keep upstream dependencies secure without manual intervention.
-- **Implementation**: Add a `.github/dependabot.yml` configuration.
-- **Details**: Schedule weekly checks for both the `pip` packages (FastAPI, httpx, slowapi) and the `Docker` base image (Python alpine). Ensure pull requests are automatically generated when patches are released.
-
-## 4. CI/CD Vulnerability Scanning
-**Objective**: Prevent deploying images containing known CVEs (Common Vulnerabilities and Exposures).
-- **Implementation**: Integrate a scanning tool like `Trivy` into the `.github/workflows/ci.yml` pipeline.
-- **Details**: Configure the pipeline to scan the final `universal-api-gateway:latest` Docker image immediately after it is built. Force the CI to fail if any `CRITICAL` or `HIGH` severity vulnerabilities are detected in the OS or Python packages.
+| Item | What it adds | Closes gap | Effort |
+|---|---|---|---|
+| **Trivy scan in CI** | Scan the built image in `ci.yml`; fail on `CRITICAL`/`HIGH` CVEs | — | 15 min |
+| **`PodDisruptionBudget` + `podAntiAffinity`** | Stops all pods being evicted at once; spreads them across nodes | *No PDB or anti-affinity* | 20 min |
+| **`HorizontalPodAutoscaler`** | Scales 2→10 replicas on CPU/memory. Only meaningful on a live cluster | — | 20 min |
+| **Dependabot** | `.github/dependabot.yml`, weekly checks on pip packages and the base image | — | 10 min |
+| **Prometheus + Grafana stack** | The app exposes `/metrics` but nothing scrapes or displays it. Compose stack, pattern reusable from `ztp-linux-node/monitoring/` | — | 45 min |
+| **SLOs + recording rules** | Availability and latency objectives as Prometheus recording rules. Alerts exist; objectives do not | — | 45 min |
+| **Ingress + TLS** | Replaces `NodePort`/`LoadBalancer` with a hostname and a certificate | *No Ingress or TLS* | 30 min |
+| **Apply `terraform/gke/`** | Written and validated, never run — blocked on GCP billing | *GKE Terraform never applied* | 30 min |
 
 ---
 
