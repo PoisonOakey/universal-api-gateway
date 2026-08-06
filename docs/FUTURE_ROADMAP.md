@@ -36,8 +36,7 @@ Known gaps, recorded so the repository does not imply otherwise:
 |---|---|
 | **No PodDisruptionBudget or anti-affinity** | Two replicas protect against a pod crash, not a node failure. On a single-node cluster both pods share a node. This is not high availability. |
 | **Rate limiting is per-pod and in memory** | `slowapi` holds counters in process. At 2 replicas the effective limit is 200 req/min, not the configured 100. A shared store such as Redis would be needed to make the limit cluster-wide. |
-| **Image tag is `latest` with `imagePullPolicy: IfNotPresent`** | A rollout can silently keep the old image. Digest or SHA tags are needed before this can be upgraded reliably. |
-| **CI never publishes the image** | The build step runs with `push: false`, so the tag the manifests reference is not produced by CI. Deployment currently depends on a locally built image. |
+
 | **No Ingress or TLS** | Exposure is a `NodePort` on 30000. Traffic is plain HTTP. |
 | **No config hot-reload** | `config/gateway.yaml` is read once at startup. Changing routes requires a pod restart. |
 | **Terminating pods are not drained** | There is no `preStop` hook or tuned `terminationGracePeriodSeconds`, so Kubernetes may route to a pod that is shutting down. |
