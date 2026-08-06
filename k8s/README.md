@@ -4,7 +4,7 @@ If you are reading this, you have likely bypassed the local `docker-compose` set
 
 This directory contains the **Infrastructure as Code (IaC)** required to run the config-driven proxy as a Deployment that Kubernetes restarts if a pod dies.
 
-> **These manifests have not been applied to a running cluster.** They are validated by rendering them with `kubectl kustomize`, which checks the YAML without contacting a cluster. What follows describes what the manifests declare, not behaviour that has been observed. See [Not Built Yet](../docs/FUTURE_ROADMAP.md).
+> **These manifests have run on a real cluster once.** They were applied to an AKS cluster in `southeastasia`, served traffic on a public IP, and the cluster was destroyed in the same session — see [The Result](../README.md#-the-result). What that run confirmed is pods reaching Ready, probes being called, the Service getting a public address, and the image pulling from GHCR. It confirmed nothing about rolling updates, node failure, or behaviour under load. Anything below not on that list describes what the manifests declare, not what has been observed. See [Not Built Yet](../docs/FUTURE_ROADMAP.md).
 
 ---
 

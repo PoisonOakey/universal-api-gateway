@@ -36,6 +36,8 @@ graph LR
 
 ## 📸 The Result
 
+### Locally, with Docker Compose
+
 Both captures below come from `docker compose up` on a local machine.
 
 ![Swagger UI listing the routes generated from config/gateway.yaml](docs/screenshots/docker-swagger.png)
@@ -46,7 +48,25 @@ Every route under **Weather** and **Dummy** exists because `config/gateway.yaml`
 
 The gateway answers `/healthz`, rejects an unauthenticated proxy call with `401`, then serves live data from Open-Meteo and dummyjson.com when a valid bearer token is supplied. `gateway_requests_total` counts all of it, labelled by method, path, and status — including the rejection. A metric that only counts successes tells you nothing on the day something breaks.
 
-> **Scope of these captures.** They show the application running in a container. They are not evidence about Kubernetes or any cloud provider: the manifests in `k8s/` and the Terraform in `terraform/` have not been applied to a running cluster. See [Not Built Yet](docs/FUTURE_ROADMAP.md).
+### On Azure Kubernetes Service
+
+The gateway running on a managed cluster, reachable on a public IP.
+
+![Two AKS nodes, both pods Ready, the LoadBalancer public IP, live proxied calls and the metrics counter](docs/screenshots/aks-terminal.png)
+
+Two nodes, two pods, and a `LoadBalancer` Service with a public address. The gateway answers `/healthz`, rejects an unauthenticated proxy call with `401`, and returns live data from Open-Meteo and dummyjson.com with a valid bearer token. The image is pulled from GHCR by tag with no pull secret, because the CI-published package is public.
+
+Three things in that output are worth more than the happy path:
+
+- **Both pods are scheduled on the same node.** Two replicas do not survive a node failure, which is what the `PodDisruptionBudget` and anti-affinity row in [Not Built Yet](docs/FUTURE_ROADMAP.md) has always said.
+- **`gateway_requests_total` is one pod's view.** The LoadBalancer picks a backend per request, so scraping the Service returns whichever pod answered. Aggregating across replicas needs Prometheus scraping pods directly.
+- **`/readyz` shows hits nobody made.** Those are the kubelet's readiness probes, which is the first evidence the probes do anything at all.
+
+![The gateway-rg resource group in the Azure portal containing the AKS cluster](docs/screenshots/aks-portal.png)
+
+Created by `terraform apply` from [`terraform/aks/`](terraform/aks/), and destroyed by `terraform destroy` in the same session. The cluster in this screenshot no longer exists.
+
+> **How this was deployed.** The overlay applied here is [`k8s/overlays/gke`](k8s/overlays/gke/), which is named for Google but contains nothing Google-specific — a `LoadBalancer` Service and a GHCR image behave the same on either provider. `terraform/gke/` has been written and validated but never applied; GCP billing was not available on this account. The Azure path is the one that has actually run.
 
 ---
 
