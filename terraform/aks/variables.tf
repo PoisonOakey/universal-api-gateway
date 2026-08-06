@@ -28,7 +28,12 @@ variable "node_count" {
 }
 
 variable "vm_size" {
-  description = "VM size for the nodes. Standard_B2s is the smallest size AKS accepts for a system node pool."
+  description = <<-EOT
+    VM size for the nodes. Standard_DC2s_v3 is not the obvious choice: the
+    B, D and F families are restricted on trial subscriptions in every
+    region, and the DC family is one of the few AKS accepts. At 2 vCPUs a
+    node, two nodes exactly fill the 4 vCPU regional quota.
+  EOT
   type        = string
-  default     = "Standard_B2s"
+  default     = "Standard_DC2s_v3"
 }
