@@ -2,12 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - github.com/PoisonOakey/universal-api-gateway//?ref=main
+  - github.com/PoisonOakey/universal-api-gateway//?ref=20cb628bf490c4d1303e94dfcbb97b25df59d1e3
 
 images:
   - name: universal-api-gateway
     newName: ghcr.io/poisonoakey/universal-api-gateway
-    newTag: REPLACE_WITH_SHA
+    newTag: 20cb628bf490c4d1303e94dfcbb97b25df59d1e3
 
 patches:
   - target:
