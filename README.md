@@ -105,16 +105,6 @@ Implementation notes are in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 └── 🐳 docker-compose.yml
 ```
 
-### Environment Variables
-
-| Variable | Default | Effect |
-|---|---|---|
-| `CONFIG_PATH` | `config/gateway.yaml` | Path to the gateway config file. |
-| `ALLOWED_ORIGINS` | `http://localhost,http://localhost:30000` | Comma-separated CORS allow-list. |
-| `API_AUTH_TOKEN` | *(unset)* | Bearer token required on proxy routes. Unset = auth disabled (startup warning logged). |
-
-Copy `.env.example` to `.env` and edit it — `docker-compose.yml` loads it automatically.
-
 ---
 
 ## 📌 Usage: "Fill in the Blanks"
@@ -132,7 +122,17 @@ gateways:
         method: "GET"
         target_path: "/forecast?latitude=52.52&longitude=13.41&current=temperature_2m"
 ```
-Registers a proxy route at `http://localhost:30000/api/weather/current`. It's open by default — set `API_AUTH_TOKEN` (see [Environment Variables](#environment-variables)) if it needs to require a Bearer token.
+Registers a proxy route at `http://localhost:30000/api/weather/current`. It's open by default — set `API_AUTH_TOKEN` below if it needs to require a Bearer token.
+
+### Environment Variables
+
+| Variable | Default | Effect |
+|---|---|---|
+| `CONFIG_PATH` | `config/gateway.yaml` | Path to the gateway config file. |
+| `ALLOWED_ORIGINS` | `http://localhost,http://localhost:30000` | Comma-separated CORS allow-list. |
+| `API_AUTH_TOKEN` | *(unset)* | Bearer token required on proxy routes. Unset = auth disabled (startup warning logged). |
+
+Copy `.env.example` to `.env` and edit it — `docker-compose.yml` loads it automatically.
 
 ---
 
@@ -159,6 +159,29 @@ Verify the manifests compile without deploying:
 kubectl kustomize .
 ```
 *(Prints the rendered YAML to your terminal).*
+
+---
+
+## 📈 Metrics
+
+What the gateway changes for the systems calling those APIs.
+
+| Metric | Calling APIs directly | Through the gateway |
+| :--- | :--- | :--- |
+| **Adding an upstream** | Code change in every caller, then redeploy each one | One entry in `config/gateway.yaml`, one restart |
+| **Retry policy** | Reimplemented per caller, or missing | 3 attempts with exponential backoff, `GET`/`HEAD` only, never on writes |
+| **Rate limiting** | Per caller if at all, upstream quota unprotected | 100 req/min per route, enforced before the request leaves |
+| **Upstream credentials** | Copied into every caller that needs them | Held in one container, callers never see them |
+| **Request visibility** | Whatever each caller happens to log | One structured line per request, plus `/metrics` by method, path and status |
+
+Measured on the AKS deployment shown above — a single run, 2 × `Standard_DC2s_v3` in `southeastasia`:
+
+| Step | Time |
+| :--- | :--- |
+| `terraform apply` — cluster ready | 4 min 37 s |
+| `kubectl apply -k` — both pods Ready | 22 s |
+| `LoadBalancer` assigned a public IP | 35 s |
+| `terraform destroy` — nothing left billing | 5 min 24 s |
 
 ---
 
