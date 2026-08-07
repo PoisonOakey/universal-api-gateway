@@ -160,7 +160,15 @@ flowchart TD
 
 **CI stops at the registry.** A green pipeline means an image was published — not that anything was deployed. That gap is deliberate.
 
-**The overlay is what makes the manifests cloud-ready.** On their own they describe a `NodePort` and a locally built image. `overlays/cloud` rewrites the Service to `LoadBalancer` and repoints the image at GHCR, pinning manifests and image to the *same* commit SHA — so a deploy names one version instead of two that can drift apart.
+**What the overlay changes.** Kustomize works in layers: a *base* describes the app, and an *overlay* patches it for one environment. Three things differ.
+
+| | Base | `overlays/cloud` |
+|---|---|---|
+| **Reachable how** | `NodePort` — only on the node's own port | `LoadBalancer` — gets a public IP |
+| **Image from** | built on your machine | pulled from GHCR |
+| **Which version** | `latest` | one specific commit SHA |
+
+The last row is the one that matters. Manifests and image are pinned to the **same** SHA, so a single value describes everything that got deployed — instead of a manifest version and an image version that can quietly drift apart.
 
 ---
 
