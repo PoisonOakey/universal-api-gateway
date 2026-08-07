@@ -6,6 +6,8 @@
 
 <p align="center">
   <a href="https://github.com/PoisonOakey/universal-api-gateway/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/PoisonOakey/universal-api-gateway/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/PoisonOakey/universal-api-gateway" /></a>
+  <img alt="Last commit" src="https://img.shields.io/github/last-commit/PoisonOakey/universal-api-gateway" />
 </p>
 
 > Third-party APIs behind one container, so the systems calling them never hardcode an upstream URL, a retry, or a rate limit.
@@ -141,6 +143,17 @@ Copy `.env.example` to `.env` and edit it — `docker-compose.yml` loads it auto
 ---
 
 ## 🚀 Quickstart
+
+### Run the published image
+
+Every push to `main` that clears all six gates lands here, tagged `latest` and by commit SHA. Nothing to build:
+
+```bash
+docker run --rm -p 30000:8000 -v "$PWD/config:/app/config:ro" \
+  ghcr.io/poisonoakey/universal-api-gateway:latest
+```
+
+Then `http://localhost:30000/docs`, same as the local build.
 
 ### Local Development (Easy Mode)
 1. Ensure **Docker Desktop** is running.
