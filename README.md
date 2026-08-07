@@ -152,13 +152,19 @@ flowchart TD
     H --> I
 ```
 
-**The same `Dockerfile` feeds both paths.** `docker compose up` builds it on your machine and stops there — no cluster, no registry. CI builds the same file, gates it behind six checks, and publishes it to GHCR.
+**One `Dockerfile`, two destinations.** On your machine, `docker compose up` builds it and stops — no registry, no cluster. Through CI, the same file clears six checks and lands in GHCR tagged with the commit SHA.
 
-**Only the Build lane is automated.** `terraform apply` and `kubectl apply -k` are run by hand, deliberately. A green pipeline means the image was published, not that anything was deployed.
+**Putting that image on a cluster takes three steps, all run by hand:**
 
-**`terraform/gke` is drawn greyed out because it has never run.** It parses and validates, but GCP billing was never available on this account. Every cluster in this repository came from `terraform/aks`.
+1. `terraform apply` — creates the cluster and writes your kubeconfig
+2. `kubectl apply -k k8s/overlays/cloud` — renders the manifests and sends them
+3. the pods start, answer their probes, and begin serving
 
-**The base is the local path**: `NodePort`, a locally built image. `overlays/cloud` swaps in the `LoadBalancer` and pins the manifests and the image to the same commit SHA, so a cloud deploy names one version rather than two that can drift.
+**CI stops at the registry.** A green pipeline means an image was published — not that anything was deployed. That gap is deliberate.
+
+**The overlay is what makes the manifests cloud-ready.** On their own they describe a `NodePort` and a locally built image. `overlays/cloud` rewrites the Service to `LoadBalancer` and repoints the image at GHCR, pinning manifests and image to the *same* commit SHA — so a deploy names one version instead of two that can drift apart.
+
+**`terraform/gke` is greyed out because it has never run.** GCP billing was never available on this account. Every cluster here came from `terraform/aks`.
 
 ---
 
