@@ -46,7 +46,7 @@ This is the **Hosting Plane**. It determines *where* the engine runs.
 
 ## 🚚 The Delivery Path
 
-The three layers above describe what the repository holds. Getting it onto a cluster crosses four lanes — GitHub Actions builds and publishes, Terraform creates the cluster, Kustomize deploys to it, and the pods serve. [Architecture & Workflow](../README.md#-architecture--workflow) in the README draws the lanes and the handoffs between them.
+The three layers above describe what the repository holds. Getting it onto a cluster crosses several lanes — GitHub Actions builds and publishes, Terraform creates the cluster, Kustomize deploys to it, and the pods serve. [From Commit to Cluster](../README.md#-from-commit-to-cluster) in the README draws the lanes and the handoffs between them.
 
 Three details the diagram cannot fit:
 

@@ -97,21 +97,31 @@ Created by `terraform apply` from [`terraform/aks/`](terraform/aks/). Destroyed 
 
 ---
 
-## 🧱 Architecture & Workflow
+## 🧱 From Commit to Cluster
 
-How the image above got onto that cluster — four lanes, each owned by the tool that should own it.
+How the image above got onto that cluster — five lanes, each owned by the tool that should own it.
+
+This covers **delivery**. For what happens to a single request once the pods are up — async proxying, retries, rate limiting — see [The Request Lifecycle](docs/ARCHITECTURE.md#-the-request-lifecycle).
 
 ```mermaid
 flowchart TD
     classDef ci fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,color:#003366;
     classDef tf fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#3b0764;
+    classDef tfx fill:#f5f5f5,stroke:#9ca3af,stroke-width:2px,stroke-dasharray: 4 4,color:#4b5563;
     classDef kz fill:#e6ffe6,stroke:#009933,stroke-width:2px,color:#004d1a;
     classDef run fill:#fff4e6,stroke:#cc6600,stroke-width:2px,color:#663300;
+    classDef dk fill:#e0f7fa,stroke:#00796b,stroke-width:2px,color:#004d40;
 
+    style Source fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
     style Build fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
     style Provision fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
     style Deploy fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
     style Serve fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
+
+    subgraph Source [One Dockerfile -- two destinations]
+        direction LR
+        S["Dockerfile"]:::dk --> L["docker compose up<br/>your machine, :30000"]:::dk
+    end
 
     subgraph Build [Build &amp; Publish -- GitHub Actions]
         direction LR
@@ -121,8 +131,8 @@ flowchart TD
 
     subgraph Provision [Provision -- Terraform, run by hand]
         direction LR
-        D["terraform/aks"]:::tf --> F["Cluster<br/>+ kubeconfig"]:::tf
-        E["terraform/gke"]:::tf --> F
+        D["terraform/aks<br/>has been applied"]:::tf --> F["Cluster<br/>+ kubeconfig"]:::tf
+        E["terraform/gke<br/>validated, never applied"]:::tfx -.-> F
     end
 
     subgraph Deploy [Deploy -- Kustomize, run by hand]
@@ -136,14 +146,19 @@ flowchart TD
         I --> K["/metrics<br/>gateway_requests_total"]:::run
     end
 
+    S --> A
     C --> H
     F --> G
     H --> I
 ```
 
-Only the first lane is automated. `terraform apply` and `kubectl apply -k` are run by hand, deliberately — CI publishes an image and stops there.
+**The same `Dockerfile` feeds both paths.** `docker compose up` builds it on your machine and stops there — no cluster, no registry. CI builds the same file, gates it behind six checks, and publishes it to GHCR.
 
-The base is the local path: `NodePort`, a locally built image. `overlays/cloud` swaps in the `LoadBalancer` and pins the manifests and the image to the same commit SHA, so a cloud deploy names one version rather than two that can drift.
+**Only the Build lane is automated.** `terraform apply` and `kubectl apply -k` are run by hand, deliberately. A green pipeline means the image was published, not that anything was deployed.
+
+**`terraform/gke` is drawn greyed out because it has never run.** It parses and validates, but GCP billing was never available on this account. Every cluster in this repository came from `terraform/aks`.
+
+**The base is the local path**: `NodePort`, a locally built image. `overlays/cloud` swaps in the `LoadBalancer` and pins the manifests and the image to the same commit SHA, so a cloud deploy names one version rather than two that can drift.
 
 ---
 
