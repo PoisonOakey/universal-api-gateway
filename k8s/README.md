@@ -15,8 +15,8 @@ How does a single YAML file on your laptop turn into a running service in a clus
 ```mermaid
 graph TD
     %% Files
-    GatewayYaml["📄 config/gateway.yaml\n(External User Config)"]
-    Kustomize["⚙️ kustomization.yaml\n(Root Orchestrator)"]
+    GatewayYaml["📄 config/gateway.yaml<br/>(External User Config)"]
+    Kustomize["⚙️ kustomization.yaml<br/>(Root Orchestrator)"]
     
     subgraph "k8s/ (K8s Resources)"
         DeployYaml["📄 api-deployment.yaml"]
@@ -24,13 +24,13 @@ graph TD
     end
     
     subgraph "Kubernetes Cluster"
-        Namespace["🛡️ gateway-system\n(Isolated Namespace)"]
-        ConfigMap["📦 ConfigMap\n(gateway-config)"]
-        Service["🚪 NodePort Service\n(Port 30000)"]
+        Namespace["🛡️ gateway-system<br/>(Isolated Namespace)"]
+        ConfigMap["📦 ConfigMap<br/>(gateway-config)"]
+        Service["🚪 NodePort Service<br/>(Port 30000)"]
         
         subgraph "Deployment"
-            Pod1["🧊 Pod 1\n(FastAPI Gateway)"]
-            Pod2["🧊 Pod 2\n(FastAPI Gateway)"]
+            Pod1["🧊 Pod 1<br/>(FastAPI Gateway)"]
+            Pod2["🧊 Pod 2<br/>(FastAPI Gateway)"]
         end
     end
 

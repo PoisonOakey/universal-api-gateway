@@ -108,10 +108,10 @@ flowchart TD
     classDef kz fill:#e6ffe6,stroke:#009933,stroke-width:2px,color:#004d1a;
     classDef run fill:#fff4e6,stroke:#cc6600,stroke-width:2px,color:#663300;
 
-    style Build fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
-    style Provision fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
-    style Deploy fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
-    style Serve fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
+    style Build fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
+    style Provision fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
+    style Deploy fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
+    style Serve fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5,color:#333
 
     subgraph Build [Build &amp; Publish -- GitHub Actions]
         direction LR
