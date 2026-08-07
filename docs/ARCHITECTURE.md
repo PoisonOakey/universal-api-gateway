@@ -12,16 +12,16 @@ The repository is intentionally split into three distinct layers to ensure a cle
 graph TD
     %% Layers
     subgraph "Layer 1: Configuration (config/)"
-        YAML["📄 gateway.yaml\nUser-defined APIs"]
+        YAML["📄 gateway.yaml<br/>User-defined APIs"]
     end
     
     subgraph "Layer 2: Execution Engine (src/)"
-        Python["🐍 main.py\n(FastAPI + HTTPX)"]
+        Python["🐍 main.py<br/>(FastAPI + HTTPX)"]
     end
     
     subgraph "Layer 3: Infrastructure (Deployment)"
-        Docker["🐳 Docker / start.bat\n(Local Easy Mode)"]
-        K8s["☸️ k8s/\n(Kubernetes)"]
+        Docker["🐳 Docker / start.bat<br/>(Local Easy Mode)"]
+        K8s["☸️ k8s/<br/>(Kubernetes)"]
     end
 
     %% Flow
@@ -41,6 +41,20 @@ This is the **Data Plane**. It contains `main.py` — reads the config layer and
 This is the **Hosting Plane**. It determines *where* the engine runs. 
 - The `docker-compose.yml` (and `start.bat`) provide an easy local hosting environment.
 - The `k8s/` folder provides the declarative YAML needed to deploy the engine to a Kubernetes cluster (with strict non-root and read-only filesystem security constraints).
+
+---
+
+## 🚚 The Delivery Path
+
+The three layers above describe what the repository holds. Getting it onto a cluster crosses four lanes — GitHub Actions builds and publishes, Terraform creates the cluster, Kustomize deploys to it, and the pods serve. [Architecture & Workflow](../README.md#-architecture--workflow) in the README draws the lanes and the handoffs between them.
+
+Three details the diagram cannot fit:
+
+**The image tag is the commit SHA, and so is the manifest ref.** `k8s/overlays/cloud` pulls its base from `github.com/PoisonOakey/universal-api-gateway//?ref=<sha>` and sets `newTag` to that same SHA. A cloud deploy therefore names one commit, rather than a manifest revision and an image revision that can drift apart. The tradeoff is that bumping the deployed version means editing two lines in one file, and they must match.
+
+**`kubectl apply -k .` at the repo root is the local path, not the cloud one.** The base emits a `NodePort` Service and an image reference of `universal-api-gateway:latest`, which resolves only against a locally built image. The cloud overlay is what rewrites the Service to `LoadBalancer`, drops the `nodePort`, and repoints the image at GHCR.
+
+**CI stops at the registry.** Nothing under `.github/` runs `terraform apply` or `kubectl apply`. The infrastructure gate proves the Terraform parses and the manifests build against real Kubernetes schemas, then the pipeline publishes an image and ends. Provisioning and deploying are deliberate, human-run steps — a green check means the configuration is valid, not that anything was deployed.
 
 ---
 
