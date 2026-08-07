@@ -283,7 +283,7 @@ Six gates in parallel on every push and PR to `main`. All six must pass before t
 | **Lint** | `ruff check` over `src/` and `tests/` |
 | **Tests** | `pytest` with coverage, floored at 75% |
 | **Dependency audit** | `pip-audit` over both requirements files, failing on a known CVE |
-| **Validate infrastructure** | `terraform validate` for AKS and GKE, `kustomize build` for base and cloud, then `kubeconform` against real Kubernetes schemas |
+| **Validate infrastructure** | `terraform validate` for AKS, `kustomize build` for base and cloud, then `kubeconform` against real Kubernetes schemas |
 | **Secret scan** | `gitleaks` across the full history, not just the tip |
 | **Build & scan image** | Trivy, blocking on any fixable HIGH or CRITICAL |
 

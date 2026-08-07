@@ -115,12 +115,6 @@ jobs:
           terraform init -backend=false -input=false
           terraform validate
 
-      - name: terraform validate (gke)
-        working-directory: terraform/gke
-        run: |
-          terraform init -backend=false -input=false
-          terraform validate
-
       - name: kustomize build (base)
         run: |
           docker run --rm -v "$PWD:/src" "$KUSTOMIZE_IMAGE" build /src > base.yaml

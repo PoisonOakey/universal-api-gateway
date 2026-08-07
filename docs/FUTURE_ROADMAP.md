@@ -14,7 +14,6 @@ Two tables. **Planned** is a tracker — delete a row once it ships. **Not Built
 | **Prometheus + Grafana stack** | The app exposes `/metrics` but nothing scrapes or displays it. Compose stack, pattern reusable from `ztp-linux-node/monitoring/` | — | 45 min |
 | **SLOs + recording rules** | Availability and latency objectives as Prometheus recording rules. Alerts exist; objectives do not | — | 45 min |
 | **Ingress + TLS** | Replaces `NodePort`/`LoadBalancer` with a hostname and a certificate | *No Ingress or TLS* | 30 min |
-| **Apply `terraform/gke/`** | Written and validated, never run — blocked on GCP billing | *GKE Terraform never applied* | 30 min |
 
 ---
 
@@ -25,7 +24,6 @@ Known gaps, recorded so the repository does not imply otherwise:
 | Gap | What this means today |
 |---|---|
 | **No cluster is running** | The manifests have been applied to a real AKS cluster and served traffic on a public IP, then destroyed. Nothing is running now, and no cluster is kept alive between demonstrations. Rolling updates, node failure, and sustained load remain unobserved — a cluster that lives for thirty minutes is not evidence about any of them. |
-| **The GKE Terraform has never been applied** | `terraform/gke/` passes `validate` and `fmt -check` but has never created anything: GCP billing was unavailable on this account. Only `terraform/aks/` has run. |
 | **No PodDisruptionBudget or anti-affinity** | Two replicas protect against a pod crash, not a node failure. On a single-node cluster both pods share a node. This is not high availability. |
 | **Rate limiting is per-pod and in memory** | `slowapi` holds counters in process. At 2 replicas the effective limit is 200 req/min, not the configured 100. A shared store such as Redis would be needed to make the limit cluster-wide. |
 | **Image tag is `latest` on the local path** | The root kustomization relies on `universal-api-gateway:latest` with `imagePullPolicy: IfNotPresent`. Only the cloud overlay pins a specific SHA tag. |
