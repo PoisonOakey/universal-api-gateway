@@ -200,7 +200,7 @@ kubectl kustomize .
 - [Architecture Overview](docs/ARCHITECTURE.md) — How the 3-Tier engine is mapped.
 - [K8s Infrastructure](k8s/README.md) — How K8s is being utilized here.
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging, port collision fixes, and CI/CD gate failures.
 - [Changelog](docs/CHANGELOG.md) — Release notes.
 - [Future Roadmap](docs/FUTURE_ROADMAP.md) — Planned features, and what is deliberately not built yet.
 
@@ -228,3 +228,5 @@ ruff check src tests
 pytest --cov=src --cov-report=term-missing
 pip-audit -r requirements.txt -r requirements-dev.txt
 ```
+
+When a gate fails, [Troubleshooting → CI/CD](docs/TROUBLESHOOTING.md#cicd-github-actions) covers each failure mode with its root cause — stale base images, transitive CVEs held back by a direct pin, `terraform validate` passing on configs that cannot apply, and secret scans that silently check nothing on a shallow clone.

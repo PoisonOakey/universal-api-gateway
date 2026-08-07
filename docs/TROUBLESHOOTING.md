@@ -256,3 +256,155 @@ az network public-ip list --output table
 az aks list --output table
 ```
 A lone `NetworkWatcherRG` is created automatically by Azure and carries no charge. Anything else is still billing.
+
+---
+
+## CI/CD (GitHub Actions)
+
+Notes from hardening the pipeline. Two of the six gates failed the first time they were pointed at the repository, and neither failure was caused by anything the pipeline itself did wrong — both were pre-existing problems that nothing had been looking for.
+
+### Trivy fails the build with dozens of CVEs the first time it runs
+
+**Symptoms:** The `image` job fails immediately with a large table — in this repo, 48 fixable HIGH/CRITICAL (6 of them CRITICAL), nearly all in `debian` packages rather than in anything the project installs.
+
+**Root Cause:** The Dockerfile pinned `python:3.12.4-slim`. A patch-level tag is immutable, so it freezes the entire OS layer at the day it was published — Debian 12.6, roughly two years stale. Every distro CVE disclosed since then accumulates in the image. Nothing in the project's own code or dependencies changed; the base simply rotted in place.
+
+**Fix:** Move the pin up one level so the base tracks patch releases:
+```dockerfile
+FROM python:3.12-slim
+```
+This took the OS findings from 48 to 0 (Debian 13.6). The Python minor version is still pinned, so this is not an uncontrolled upgrade.
+
+> [!TIP]
+> The Dependabot `docker` ecosystem in `.github/dependabot.yml` exists specifically for this. It watches the base image and opens a PR when it moves, which is what stops the same drift from silently rebuilding over the next two years.
+
+---
+
+### Trivy reports a CVE in a package that is not in `requirements.txt`
+
+**Symptoms:** After the base image is clean, three HIGH findings remain against `starlette` — a package the project never declares.
+
+**Root Cause:** Trivy scans what is actually installed in the image, not what is declared. `starlette` is a transitive dependency of FastAPI, and `fastapi==0.111.0` constrains it to `>=0.37.2,<0.38.0`. The vulnerable version cannot be upgraded on its own; the pin holding it back is the direct dependency.
+
+For a gateway, one of these is worth naming: **CVE-2024-47874** is a denial of service via `multipart/form-data`, reachable on any proxied `POST`.
+
+**Fix:** Upgrade the *direct* dependency that pins the vulnerable transitive one:
+```bash
+pip install --upgrade fastapi
+pip list --format=freeze | grep -iE '^(fastapi|starlette)=='
+```
+Then re-pin `requirements.txt` from the resolved output. Verify before committing — this crossed a starlette major version (0.37 → 1.4):
+```bash
+pytest                      # unit tests
+docker build -t uag:test .  # then smoke-test the running container
+```
+
+---
+
+### `pip-audit` fails on a test-only dependency
+
+**Symptoms:** The `audit-deps` job fails on `PYSEC-2026-1845` in `pytest==8.2.2`, which never ships in the image.
+
+**Root Cause:** The gate audits `requirements-dev.txt` as well as `requirements.txt`. This is deliberate: dev dependencies run with full access to the repository and to CI secrets, so a compromised test tool is a real supply-chain path even though it is not in the published artifact.
+
+**Fix:** Bump the dev pin like any other. If a finding genuinely has no fix available yet, do not delete the step — narrow it, and leave a reason:
+```bash
+pip-audit -r requirements.txt -r requirements-dev.txt --ignore-vuln <ID>   # <reason + revisit date>
+```
+
+---
+
+### The Trivy gate blocks on a CVE with no patch available
+
+**Root Cause:** Distro packages routinely carry disclosed vulnerabilities with no fixed version released. Gating on those makes the pipeline unfixable — the only way to go green is to stop scanning.
+
+**Fix:** The gate runs with `--ignore-unfixed`, so it only fails on findings that can actually be acted on. A second non-blocking step reports everything else, including unfixed and MEDIUM, so the full picture stays visible in the logs without holding up a release.
+
+---
+
+### Trivy cannot find the image the build just produced
+
+**Symptoms:** The scan step errors with an image-not-found, even though the build step above it succeeded.
+
+**Root Cause:** `docker/build-push-action` with `push: false` leaves the result in the buildx cache. It never enters the local Docker daemon, so nothing that talks to the daemon can see it.
+
+**Fix:** Set `load: true` on the build step, which materialises the image into the daemon under its tag. This also matters for correctness: it is what lets the scan run against the exact image `publish` later pushes, rather than a separate rebuild.
+
+---
+
+### `terraform init` in CI wants credentials or remote state
+
+**Root Cause:** A plain `init` configures the backend, which for most real configurations means reaching for state and cloud credentials. Neither should be needed just to check that the configuration is syntactically valid.
+
+**Fix:** Initialise providers only:
+```bash
+terraform init -backend=false -input=false
+terraform validate
+```
+
+> [!IMPORTANT]
+> `terraform validate` checks syntax and types. It does **not** contact the compute API, so it passes against configurations that cannot actually apply — see *Azure: "The VM size of Standard_B2s is not allowed in your subscription"* above. Treat a green `validate-infra` job as "this will parse", not "this will deploy".
+
+---
+
+### `kustomize build` succeeds but the manifests are still wrong
+
+**Root Cause:** Kustomize validates kustomize syntax. It does not check the rendered objects against the Kubernetes API — a misspelled field or a wrong `apiVersion` renders happily and fails at `kubectl apply`.
+
+**Fix:** Pipe the render into a schema validator. The pipeline runs both, for the base and the cloud overlay:
+```bash
+kustomize build . > base.yaml
+kubeconform -strict -summary -verbose < base.yaml
+```
+
+---
+
+### The cloud overlay makes CI depend on GitHub being reachable
+
+**Root Cause:** `k8s/overlays/cloud/kustomization.yaml` references a remote base pinned to a commit SHA (see *`cycle detected` when rendering an overlay* above). Building it performs a network fetch, so the `validate-infra` job depends on that repository staying public and that SHA staying reachable.
+
+**Consequence to keep in mind:** the job validates the manifests *at that pinned commit*, not the ones in your working tree. A change to `k8s/api-deployment.yaml` on a branch is not covered by the overlay build until it is pushed and the ref is bumped. The base build in the same job does cover the working tree, which is why both run.
+
+---
+
+### `gitleaks` passes but never actually scanned the history
+
+**Symptoms:** The secret scan reports success suspiciously fast and mentions only a commit or two.
+
+**Root Cause:** `actions/checkout` does a shallow clone by default (`fetch-depth: 1`). Gitleaks then has almost no history to walk, so a secret committed and later removed — the exact case the gate exists to catch — is invisible. The job goes green while checking nothing.
+
+**Fix:**
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+```
+A correct run states the number of commits scanned; this repo reports 43. If that number looks too small, the checkout is the problem.
+
+---
+
+### Ruff flags `Depends()` in a function signature (B008)
+
+**Symptoms:** `ruff check` reports *function-call-in-default-argument* on every FastAPI dependency.
+
+**Root Cause:** A false positive. B008 exists to catch mutable defaults evaluated once at definition time; `Depends()` is the framework's intended idiom and FastAPI resolves it per request.
+
+**Fix:** Exempt it in `ruff.toml` rather than adding a `# noqa` to every route:
+```toml
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Security"]
+```
+
+---
+
+### `docker run -v` fails on Windows with a mangled path
+
+**Symptoms:** Running the pipeline's container steps locally from Git Bash fails with something like *"the working directory 'D:/Git/app' is invalid, it needs to be an absolute path"* — note the injected `Git`.
+
+**Root Cause:** MSYS (Git Bash) rewrites anything that looks like a POSIX path in an argument, so `/app` is expanded against the Git installation directory before Docker ever sees it.
+
+**Fix:** Disable the rewriting for that command, and double up the leading slash on container-side paths:
+```bash
+MSYS_NO_PATHCONV=1 docker run --rm -v "D:/universal-api-gateway:/src" -w //app <image>
+```
+PowerShell is not affected. This only bites when reproducing CI steps locally on Windows.
