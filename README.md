@@ -40,60 +40,25 @@ The same image, running in two places.
 
 ### 🐳 Locally, with Docker Compose
 
-**Routes come from the config file, not from code.**
-
 ![Swagger UI listing the routes generated from config/gateway.yaml](docs/screenshots/docker-swagger.png)
 
 Every route under **Weather** and **Dummy** exists because `config/gateway.yaml` declares it. No Python was written for any of them.
 
-`/healthz`, `/readyz` and `/metrics` are built in, and the config cannot affect them.
-
-<br>
-
-**Auth is enforced, and every request is counted.**
-
 ![Terminal output showing health, auth rejection, two live proxied calls, and the metrics counter](docs/screenshots/docker-terminal.png)
 
-| Request | Result |
-|---|---|
-| `GET /healthz` | `200` |
-| Proxy call, no token | `401` — rejected |
-| Proxy call, valid token | `200` — live data from Open-Meteo |
-| `GET /api/dummy/products` | `200` — 30 products from dummyjson.com |
+Health check passes, an unauthenticated call is rejected with `401`, and a valid token returns live data from Open-Meteo and dummyjson.com.
 
-`gateway_requests_total` counts all four, labelled by method, path and status — **including the rejection**.
-
-> A metric that only counts successes tells you nothing on the day something breaks.
 ---
-### ☁️ On Azure Kubernetes Service
 
-**Two nodes, two pods, one public IP.**
+### ☁️ On Azure Kubernetes Service
 
 ![Two AKS nodes, both pods Ready, the LoadBalancer public IP, live proxied calls and the metrics counter](docs/screenshots/aks-terminal.png)
 
-Same four requests as above, this time against a `LoadBalancer` address reachable from the internet.
-
-The image is pulled from the GitHub Container Registry (GHCR) by tag with **no pull secret**, because the package CI publishes is public.
-
-<br>
-
-**Three details worth more than the happy path:**
-
-| What | Why it matters |
-|---|---|
-| Both pods landed on the **same node** | Two replicas survive a pod crash, not a node failure. Exactly what the anti-affinity row in [Not Built Yet](docs/FUTURE_ROADMAP.md) says. |
-| The metrics are **one pod's view** | The LoadBalancer picks a backend per request, so scraping the Service returns whichever pod answered. Aggregating needs Prometheus scraping pods directly. |
-| `/readyz` shows **hits nobody made** | The kubelet's readiness probes. First evidence the probes do anything at all. |
-
-<br>
-
-**The cluster, in the Azure portal.**
+Two nodes, two pods, a `LoadBalancer` with a public IP — the same calls, this time from the internet.
 
 ![The gateway-rg resource group in the Azure portal containing the AKS cluster](docs/screenshots/aks-portal.png)
 
-Created by `terraform apply` from [`terraform/aks/`](terraform/aks/). Destroyed by `terraform destroy` in the same session.
-
-**The cluster in this screenshot no longer exists.**
+Created with `terraform apply`, destroyed with `terraform destroy` in the same session. **The cluster in this screenshot no longer exists.**
 
 ---
 
