@@ -174,15 +174,6 @@ What the gateway changes for the systems calling those APIs.
 | **Upstream credentials** | Copied into every caller that needs them | Held in one container, callers never see them |
 | **Request visibility** | Whatever each caller happens to log | One structured line per request, plus `/metrics` by method, path and status |
 
-Measured on the AKS deployment shown above — a single run, 2 × `Standard_DC2s_v3` in `southeastasia`:
-
-| Step | Time |
-| :--- | :--- |
-| `terraform apply` — cluster ready | 4 min 37 s |
-| `kubectl apply -k` — both pods Ready | 22 s |
-| `LoadBalancer` assigned a public IP | 35 s |
-| `terraform destroy` — nothing left billing | 5 min 24 s |
-
 ---
 
 ## 📚 Documentation
