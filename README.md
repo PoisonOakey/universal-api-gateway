@@ -73,7 +73,7 @@ Every route under **Weather** and **Dummy** exists because `config/gateway.yaml`
 
 Same four requests as above, this time against a `LoadBalancer` address reachable from the internet.
 
-The image is pulled from GHCR by tag with **no pull secret**, because the package CI publishes is public.
+The image is pulled from the GitHub Container Registry (GHCR) by tag with **no pull secret**, because the package CI publishes is public.
 
 <br>
 
@@ -107,7 +107,6 @@ This covers **delivery**. For what happens to a single request once the pods are
 flowchart TD
     classDef ci fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,color:#003366;
     classDef tf fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#3b0764;
-    classDef tfx fill:#f5f5f5,stroke:#9ca3af,stroke-width:2px,stroke-dasharray: 4 4,color:#4b5563;
     classDef kz fill:#e6ffe6,stroke:#009933,stroke-width:2px,color:#004d1a;
     classDef run fill:#fff4e6,stroke:#cc6600,stroke-width:2px,color:#663300;
     classDef dk fill:#e0f7fa,stroke:#00796b,stroke-width:2px,color:#004d40;
@@ -131,8 +130,7 @@ flowchart TD
 
     subgraph Provision [Provision -- Terraform, run by hand]
         direction LR
-        D["terraform/aks<br/>has been applied"]:::tf --> F["Cluster<br/>+ kubeconfig"]:::tf
-        E["terraform/gke<br/>validated, never applied"]:::tfx -.-> F
+        D["terraform/aks"]:::tf --> F["Cluster<br/>+ kubeconfig"]:::tf
     end
 
     subgraph Deploy [Deploy -- Kustomize, run by hand]
@@ -152,7 +150,7 @@ flowchart TD
     H --> I
 ```
 
-**One `Dockerfile`, two destinations.** On your machine, `docker compose up` builds it and stops — no registry, no cluster. Through CI, the same file clears six checks and lands in GHCR tagged with the commit SHA.
+**One `Dockerfile`, two destinations.** On your machine, `docker compose up` builds it and stops — no registry, no cluster. Through CI, the same file clears six checks and lands in GHCR tagged with the commit SHA (Secure Hash Algorithm) — the unique fingerprint git gives every commit.
 
 **Putting that image on a cluster takes three steps, all run by hand:**
 
@@ -163,8 +161,6 @@ flowchart TD
 **CI stops at the registry.** A green pipeline means an image was published — not that anything was deployed. That gap is deliberate.
 
 **The overlay is what makes the manifests cloud-ready.** On their own they describe a `NodePort` and a locally built image. `overlays/cloud` rewrites the Service to `LoadBalancer` and repoints the image at GHCR, pinning manifests and image to the *same* commit SHA — so a deploy names one version instead of two that can drift apart.
-
-**`terraform/gke` is greyed out because it has never run.** GCP billing was never available on this account. Every cluster here came from `terraform/aks`.
 
 ---
 
