@@ -1,0 +1,14 @@
+target-version = "py312"
+
+[lint]
+# E/W pycodestyle, F pyflakes, I isort, B bugbear, UP pyupgrade
+select = ["E", "W", "F", "I", "B", "UP"]
+
+# Line length is not enforced: main.py favours a few long, readable
+# single-line expressions over wrapped ones.
+ignore = ["E501"]
+
+[lint.flake8-bugbear]
+# `Depends(...)` in a default argument is the standard FastAPI idiom,
+# not the mutable-default bug B008 is looking for.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Security"]

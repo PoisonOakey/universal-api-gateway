@@ -1,22 +1,28 @@
-from fastapi import FastAPI, HTTPException, Request, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import httpx
-import yaml
+import logging
+import os
+import re
 import secrets
 import time
 import uuid
-import os
-import logging
-import re
 from contextlib import asynccontextmanager
 
+import httpx
+import yaml
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type, retry_if_result
+from slowapi.util import get_remote_address
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    retry_if_result,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 # ──────────────
 #  Logging Setup
@@ -76,7 +82,7 @@ app.add_middleware(
 async def log_requests(request: Request, call_next):
     request_id = str(uuid.uuid4())
     start_time = time.time()
-    
+
     try:
         response = await call_next(request)
         status_code = response.status_code
@@ -87,12 +93,12 @@ async def log_requests(request: Request, call_next):
         duration_s = time.time() - start_time
         duration_ms = int(duration_s * 1000)
         logger.info(f"request_id={request_id} method={request.method} path={request.url.path} status={status_code} duration_ms={duration_ms}")
-        
+
         route = request.scope.get("route")
         path_label = route.path if route else request.url.path
         REQUESTS_TOTAL.labels(method=request.method, path=path_label, status=status_code).inc()
         REQUEST_DURATION.labels(method=request.method, path=path_label).observe(duration_s)
-        
+
     return response
 
 # ──────────────
@@ -105,7 +111,7 @@ if not os.path.exists(CONFIG_PATH):
 
 def load_config():
     try:
-        with open(CONFIG_PATH, "r") as f:
+        with open(CONFIG_PATH) as f:
             return yaml.safe_load(f)
     except Exception as e:
         logger.warning(f"Warning: Could not load config from {CONFIG_PATH}: {e}")
@@ -139,9 +145,9 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
             formatted_target = target_path
             for key, val in request.path_params.items():
                 formatted_target = formatted_target.replace(f"{{{key}}}", str(val))
-                
+
             target_url = f"{base_url.rstrip('/')}/{formatted_target.lstrip('/')}"
-            
+
             # Forward the request
             # Never forward the caller's credentials to the upstream: the bearer
             # token authenticates the caller to this gateway, not to the API behind it.
@@ -156,10 +162,10 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
                 body = await request.body()
                 if body:
                     req_kwargs["content"] = body
-            
+
             async def make_request():
                 return await request.app.state.client.request(**req_kwargs)
-            
+
             if should_retry:
                 make_request = retry(
                     wait=wait_exponential(multiplier=0.5, max=4),
@@ -167,16 +173,16 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
                     retry=retry_if_exception_type((httpx.TimeoutException, httpx.ConnectError)) | retry_if_result(lambda r: r.status_code in (502, 503, 504)),
                     before_sleep=lambda rs: logger.warning(f"gateway={gateway_name} event=retry attempt={rs.attempt_number} path={target_url}")
                 )(make_request)
-                
+
             upstream_response = await make_request()
-            
+
             # Filter headers
             hop_by_hop = {"content-length", "content-encoding", "transfer-encoding", "connection"}
             filtered_headers = {
-                k: v for k, v in upstream_response.headers.items() 
+                k: v for k, v in upstream_response.headers.items()
                 if k.lower() not in hop_by_hop
             }
-            
+
             return Response(
                 content=upstream_response.content,
                 status_code=upstream_response.status_code,
@@ -184,32 +190,32 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
             )
         except httpx.TimeoutException as e:
             logger.error(f"gateway={gateway_name} error=TimeoutException detail={str(e)}")
-            raise HTTPException(status_code=504, detail="Gateway Timeout")
+            raise HTTPException(status_code=504, detail="Gateway Timeout") from e
         except httpx.RequestError as e:
             logger.error(f"gateway={gateway_name} error=RequestError detail={str(e)}")
-            raise HTTPException(status_code=502, detail="Bad Gateway")
+            raise HTTPException(status_code=502, detail="Bad Gateway") from e
         except Exception as e:
             logger.error(f"gateway={gateway_name} error=Exception detail={str(e)}")
-            raise HTTPException(status_code=500, detail="Internal Server Error")
-            
+            raise HTTPException(status_code=500, detail="Internal Server Error") from e
+
     # Unique name for slowapi route registration
     safe_target = re.sub(r'[^a-zA-Z0-9_]', '_', target_path)
     proxy_endpoint.__name__ = f"proxy_{gateway_name}_{safe_target}"
     proxy_endpoint.__qualname__ = proxy_endpoint.__name__
-    
+
     return limiter.limit("100/minute")(proxy_endpoint)
 
 if "gateways" in gateway_config and gateway_config["gateways"]:
     for gw in gateway_config["gateways"]:
         gw_name = gw.get("name", "unknown")
         base_url = gw.get("base_url")
-        
+
         for route in gw.get("routes", []):
             path = f"/api/{gw_name}{route['path']}"
             method = route.get("method", "GET").upper()
             target_path = route.get("target_path")
             desc = route.get("description", f"Proxy route for {gw_name}")
-            
+
             # Register route dynamically with auth dependency
             app.add_api_route(
                 path,

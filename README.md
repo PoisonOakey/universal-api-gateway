@@ -200,7 +200,7 @@ kubectl kustomize .
 - [Architecture Overview](docs/ARCHITECTURE.md) — How the 3-Tier engine is mapped.
 - [K8s Infrastructure](k8s/README.md) — How K8s is being utilized here.
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging and port collision fixes.
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging, port collision fixes, and CI/CD gate failures.
 - [Changelog](docs/CHANGELOG.md) — Release notes.
 - [Future Roadmap](docs/FUTURE_ROADMAP.md) — Planned features, and what is deliberately not built yet.
 
@@ -208,8 +208,25 @@ kubectl kustomize .
 
 ## ⚙️ CI/CD Pipeline
 
-GitHub Actions runs on every push/PR to `main`: install dependencies → run the `pytest` smoke suite (`tests/test_api.py`) → build the Docker image (dry run, not pushed). A failing test blocks the build step. Run the same suite locally with:
+GitHub Actions runs six gates in parallel on every push/PR to `main`. All six must pass before the image is published to GHCR.
+
+| Gate | What it checks |
+| :--- | :--- |
+| **Lint** | `ruff check` over `src/` and `tests/` (config in `ruff.toml`). |
+| **Tests** | `pytest` with coverage, floored at 75%. |
+| **Dependency audit** | `pip-audit` against both requirements files; fails on a known CVE. |
+| **Validate infrastructure** | `terraform fmt` + `validate` for both `terraform/aks` and `terraform/gke`, `kustomize build` for the base and the cloud overlay, then `kubeconform` against real Kubernetes schemas. |
+| **Secret scan** | `gitleaks` across the full commit history. |
+| **Build & scan image** | Builds the image, then Trivy fails the run on any fixable HIGH/CRITICAL CVE. |
+
+Dependency updates are proposed weekly by Dependabot for pip, GitHub Actions, and the Dockerfile base image.
+
+Run the Python gates locally with:
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-pytest
+ruff check src tests
+pytest --cov=src --cov-report=term-missing
+pip-audit -r requirements.txt -r requirements-dev.txt
 ```
+
+When a gate fails, [Troubleshooting → CI/CD](docs/TROUBLESHOOTING.md#cicd-github-actions) covers each failure mode with its root cause — stale base images, transitive CVEs held back by a direct pin, `terraform validate` passing on configs that cannot apply, and secret scans that silently check nothing on a shallow clone.

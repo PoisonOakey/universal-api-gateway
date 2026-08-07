@@ -4,6 +4,33 @@ All notable changes to this project are documented here.
 
 ---
 
+## v0.8.0 — CI/CD Hardening (2026-08-07)
+
+### Added
+- **Six-gate CI pipeline:** `.github/workflows/ci.yml` now runs lint, tests, dependency audit, infrastructure validation, secret scanning, and image scanning in parallel. All six must pass before the image is published to GHCR. Previously only `pytest` and a Docker dry-run build gated the publish, leaving the Terraform and Kubernetes layers — a large share of the repository — entirely unvalidated.
+- **Infrastructure validation:** `terraform fmt -check` plus `terraform validate` for both `terraform/aks` and `terraform/gke` (using `init -backend=false`, so no state or cloud credentials are needed), `kustomize build` for the base and the cloud overlay, and `kubeconform -strict` against real Kubernetes API schemas.
+  - *Limitation:* `terraform validate` does not contact the compute API, so it passes against configurations that cannot apply — see the AKS VM-size failure in [Troubleshooting](TROUBLESHOOTING.md). A green job means "this parses", not "this deploys".
+- **Image scanning:** Trivy fails the build on any HIGH/CRITICAL CVE that has a fix available. Runs with `--ignore-unfixed` so unpatchable distro CVEs cannot make the pipeline permanently unfixable; a second non-blocking step reports the full picture including MEDIUM and unfixed.
+- **Secret scanning:** `gitleaks` across the full commit history (`fetch-depth: 0` — the default shallow clone would let the gate pass without scanning anything).
+- **Dependency audit:** `pip-audit` over both requirements files. Dev dependencies are included deliberately: they run with access to the repository and CI secrets even though they never ship in the image.
+- **Linting:** `ruff` with config in `ruff.toml`. `E501` is off (a few long single-line expressions in `main.py` read better unwrapped) and `fastapi.Depends`/`fastapi.Security` are exempt from `B008`, which flags the standard FastAPI idiom as a mutable-default bug.
+- **Coverage floor:** `pytest --cov-fail-under=75`, against a current 80%.
+- **Dependabot:** Weekly updates for pip, GitHub Actions, and the Dockerfile base image.
+
+### Security
+- **Base image un-pinned to the minor version:** `python:3.12.4-slim` → `python:3.12-slim`. This partially reverses the v0.6.0 decision to pin to a patch tag. That pin achieved reproducibility but froze the entire OS layer at its publication date; two years on, Trivy found **48 fixable HIGH/CRITICAL CVEs (6 CRITICAL)** in Debian 12.6 packages. Moving up one level takes that to 0 while keeping the Python minor version pinned, and Dependabot's `docker` ecosystem now watches the tag so the same drift is caught rather than accumulating silently.
+- **Runtime dependencies upgraded to clear starlette CVEs:** `fastapi` 0.111.0 → 0.141.1 (and the rest of `requirements.txt` re-pinned to match). `fastapi==0.111.0` constrained `starlette` to `<0.38.0`, holding three HIGH CVEs in place — including **CVE-2024-47874**, a `multipart/form-data` denial of service reachable on any proxied `POST`. This crosses a starlette major version (0.37 → 1.4); the full test suite and a container smoke test (config load, health, readiness, metrics, auth rejection) both pass on the new stack.
+- **Dev dependencies upgraded:** `pytest` 8.2.2 → 9.1.1, resolving `PYSEC-2026-1845`, plus matching `pytest-asyncio` and `pytest-cov`.
+- **Least-privilege workflow permissions:** default `contents: read`, with only the `publish` job widening to `packages: write`.
+
+### Changed
+- **Image built once, then scanned and published:** the `image` job builds with `load: true` so Trivy scans the exact artifact `publish` pushes, and a shared GitHub Actions layer cache makes the publish step a cache hit rather than a genuine second build.
+- **Concurrency group:** a newer push supersedes an in-flight run on the same ref, except on `main`, where runs publish and are never cancelled.
+- **Error chaining:** the three proxy exception handlers now `raise HTTPException(...) from e`, preserving the original traceback for debugging without changing the client-facing response.
+- **Documentation:** added a CI/CD section to [Troubleshooting](TROUBLESHOOTING.md) covering each failure mode hit while building the pipeline, and rewrote the README's CI/CD section as a table of the six gates.
+
+---
+
 ## v0.7.1 — CI Import Fix (2026-07-29)
 
 ### Fixed

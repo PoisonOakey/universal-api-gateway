@@ -1,7 +1,10 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
 from src.main import app
-from unittest.mock import patch, AsyncMock
+
 
 @pytest.fixture
 def anyio_backend():
@@ -38,7 +41,7 @@ async def test_proxy_success():
             mock_request.return_value.status_code = 200
             mock_request.return_value.content = b'{"success": true}'
             mock_request.return_value.headers = {}
-            
+
             async with AsyncClient(transport=ASGITransport(app=app, client=("127.0.0.1", 12345)), base_url="http://test") as ac:
                 res = await ac.get("/api/weather/weather/current", headers={"Authorization": "Bearer test-token"})
                 assert res.status_code == 200
@@ -81,7 +84,7 @@ async def test_rate_limiting():
                 mock_request.return_value.status_code = 200
                 mock_request.return_value.content = b'{"success": true}'
                 mock_request.return_value.headers = {}
-                
+
                 for _ in range(105):
                     res = await ac.get("/api/dummy/products", headers={"Authorization": "Bearer test-token"})
                     if res.status_code == 429:
