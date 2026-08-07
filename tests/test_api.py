@@ -29,7 +29,7 @@ async def test_metrics_exposed():
 async def test_proxy_unauthorized():
     with patch("src.main.API_AUTH_TOKEN", "test-token"):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            res = await ac.get("/api/weather/weather/current")
+            res = await ac.get("/api/weather/current")
             assert res.status_code == 401
 
 @pytest.mark.asyncio
@@ -43,7 +43,7 @@ async def test_proxy_success():
             mock_request.return_value.headers = {}
 
             async with AsyncClient(transport=ASGITransport(app=app, client=("127.0.0.1", 12345)), base_url="http://test") as ac:
-                res = await ac.get("/api/weather/weather/current", headers={"Authorization": "Bearer test-token"})
+                res = await ac.get("/api/weather/current", headers={"Authorization": "Bearer test-token"})
                 assert res.status_code == 200
 
 @pytest.mark.asyncio
@@ -59,7 +59,7 @@ async def test_caller_credentials_not_forwarded_upstream():
 
             async with AsyncClient(transport=ASGITransport(app=app, client=("127.0.0.1", 12345)), base_url="http://test") as ac:
                 await ac.get(
-                    "/api/weather/weather/current",
+                    "/api/weather/current",
                     headers={"Authorization": "Bearer test-token", "Cookie": "session=secret"},
                 )
 

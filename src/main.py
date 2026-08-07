@@ -5,6 +5,7 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 import yaml
@@ -148,6 +149,17 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
 
             target_url = f"{base_url.rstrip('/')}/{formatted_target.lstrip('/')}"
 
+            # A target_path may carry its own query string -- the documented way
+            # to pin upstream arguments, e.g. "/forecast?latitude=52.52". httpx
+            # *replaces* a URL's query with whatever `params` is given rather
+            # than merging, so passing the caller's query params straight
+            # through wiped the configured ones whenever the caller sent none.
+            # Merge them explicitly, and let the caller win on a conflict so a
+            # configured value stays a default rather than a hard-coded answer.
+            split_target = urlsplit(target_url)
+            merged_params = httpx.QueryParams(split_target.query).merge(request.query_params)
+            target_url = urlunsplit(split_target._replace(query=""))
+
             # Forward the request
             # Never forward the caller's credentials to the upstream: the bearer
             # token authenticates the caller to this gateway, not to the API behind it.
@@ -155,7 +167,7 @@ def create_proxy_endpoint(gateway_name, base_url, target_path, method):
             req_kwargs = {
                 "method": method,
                 "url": target_url,
-                "params": request.query_params,
+                "params": merged_params,
                 "headers": {k: v for k, v in request.headers.items() if k.lower() not in drop_headers}
             }
             if method in ["POST", "PUT", "PATCH"]:
