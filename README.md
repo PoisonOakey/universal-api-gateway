@@ -208,8 +208,23 @@ kubectl kustomize .
 
 ## ⚙️ CI/CD Pipeline
 
-GitHub Actions runs on every push/PR to `main`: install dependencies → run the `pytest` smoke suite (`tests/test_api.py`) → build the Docker image (dry run, not pushed). A failing test blocks the build step. Run the same suite locally with:
+GitHub Actions runs six gates in parallel on every push/PR to `main`. All six must pass before the image is published to GHCR.
+
+| Gate | What it checks |
+| :--- | :--- |
+| **Lint** | `ruff check` over `src/` and `tests/` (config in `ruff.toml`). |
+| **Tests** | `pytest` with coverage, floored at 75%. |
+| **Dependency audit** | `pip-audit` against both requirements files; fails on a known CVE. |
+| **Validate infrastructure** | `terraform fmt` + `validate` for both `terraform/aks` and `terraform/gke`, `kustomize build` for the base and the cloud overlay, then `kubeconform` against real Kubernetes schemas. |
+| **Secret scan** | `gitleaks` across the full commit history. |
+| **Build & scan image** | Builds the image, then Trivy fails the run on any fixable HIGH/CRITICAL CVE. |
+
+Dependency updates are proposed weekly by Dependabot for pip, GitHub Actions, and the Dockerfile base image.
+
+Run the Python gates locally with:
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-pytest
+ruff check src tests
+pytest --cov=src --cov-report=term-missing
+pip-audit -r requirements.txt -r requirements-dev.txt
 ```

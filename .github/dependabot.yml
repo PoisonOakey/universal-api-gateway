@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  # Python runtime + dev dependencies (both files are picked up by the
+  # pip ecosystem from the repository root).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python-dev:
+        dependency-type: "development"
+
+  # Keeps the pinned action versions in ci.yml current.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Watches the base image pin in the Dockerfile. This is the update that
+  # clears most Trivy findings, since almost all of them come from the
+  # python:*-slim base layer rather than from our own dependencies.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

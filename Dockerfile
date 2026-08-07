@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────
 #  Stage 1: Lightweight Python image
 # ─────────────────────────────────────────────
-FROM python:3.12.4-slim
+FROM python:3.12-slim
 
 # Create a non-root user
 RUN useradd -m -u 1000 gateway_user
