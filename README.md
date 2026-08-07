@@ -95,12 +95,6 @@ Created by `terraform apply` from [`terraform/aks/`](terraform/aks/). Destroyed 
 
 **The cluster in this screenshot no longer exists.**
 
-<br>
-
-> **On naming.** The overlay applied here is [`k8s/overlays/gke`](k8s/overlays/gke/) — named for Google, but containing nothing Google-specific. A `LoadBalancer` Service and a GHCR image behave the same on either provider.
->
-> [`terraform/gke/`](terraform/gke/) is written and validated but has **never been applied**; GCP billing was not available on this account. Azure is the path that has actually run.
-
 ---
 
 ## 🛠️ Key Engineering Decisions
