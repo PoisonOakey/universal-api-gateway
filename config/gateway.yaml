@@ -11,7 +11,10 @@ gateways:
   - name: "weather"
     base_url: "https://api.open-meteo.com/v1"
     routes:
-      - path: "/weather/current"
+      # Paths are appended to /api/{name}, so this resolves to
+      # /api/weather/current -- repeating the gateway name here would
+      # produce /api/weather/weather/current.
+      - path: "/current"
         method: "GET"
         target_path: "/forecast?latitude=52.52&longitude=13.41&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
         description: "Fetches current weather for Berlin (example)"
