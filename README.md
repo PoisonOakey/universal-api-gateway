@@ -64,13 +64,7 @@ Every route under **Weather** and **Dummy** exists because `config/gateway.yaml`
 `gateway_requests_total` counts all four, labelled by method, path and status — **including the rejection**.
 
 > A metric that only counts successes tells you nothing on the day something breaks.
-
-<br>
-
 ---
-
-<br>
-
 ### ☁️ On Azure Kubernetes Service
 
 **Two nodes, two pods, one public IP.**
