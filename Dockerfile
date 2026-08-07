@@ -3,6 +3,11 @@
 # ─────────────────────────────────────────────
 FROM python:3.12-slim
 
+# Links the published package back to this repository. Without it GHCR treats
+# the image as unattached: it never appears under Packages on the repo page,
+# and its own page does not say where it came from.
+LABEL org.opencontainers.image.source="https://github.com/PoisonOakey/universal-api-gateway"
+
 # Create a non-root user
 RUN useradd -m -u 1000 gateway_user
 
