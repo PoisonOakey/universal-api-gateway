@@ -66,15 +66,15 @@ Created with `terraform apply`, destroyed with `terraform destroy` in the same s
 
 | Feature | Description |
 |---|---|
-| **Asynchronous I/O** | While one request waits on a slow provider, the same worker keeps serving everyone else. A degraded upstream costs latency, not the capacity to answer other traffic. |
+| **Asynchronous I/O** | While one request waits on a slow provider, the same worker keeps serving everyone else. |
 | **Authentication** | Set `API_AUTH_TOKEN` and every proxy route demands it. Health checks stay open, because Kubernetes has no way to send a token. |
 | **Rate Limiting** | 100 requests a minute per caller, then a `429`. Each pod counts on its own, so three pods allow 300. |
 | **Idempotent Retries** | When an upstream API times out or returns a `502`/`503`/`504`, reads are tried again — three attempts, waiting longer between each. Writes are never retried, so nothing is submitted twice. |
 | **Prometheus Metrics** | `/metrics` counts and times every request by method, path and status. Rejections are counted too, not just the calls that worked. |
 | **Graceful Shutdown** | When the pod stops, the gateway closes its upstream connections instead of leaving them hanging. |
-| **Structured Logging** | One line per request — an ID, the method, path, status and how long it took. Readable in a terminal, parseable by anything you ship it to. |
+| **Structured Logging** | One line per request — an ID, the method, path, status and how long it took. |
 | **Health Probes** | `/healthz` says the process is alive. `/readyz` says it can take traffic. Kubernetes restarts or reroutes based on the answers. |
-| **Container Hardening** | Runs as an ordinary user, not root, and cannot write to its own filesystem. A compromised proxy has nothing to tamper with. |
+| **Container Hardening** | Runs as an ordinary user, not root, and cannot write to its own filesystem. |
 
 Implementation notes are in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
