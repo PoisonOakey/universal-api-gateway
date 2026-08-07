@@ -4,21 +4,21 @@
   <img alt="Tech stack: Python 3.12, FastAPI, Uvicorn, httpx, YAML, Docker, Kubernetes, GitHub Actions, pytest, Prometheus" src="https://github-readme-tech-stack.vercel.app/api/cards?title=Tech%20Stack&theme=github_dark&align=center&titleAlign=center&width=470&gap=12&lineHeight=8&fontSize=18&hideBg=true&borderRadius=6&border=%2330363d&titleColor=%238b949e&lineCount=3&line1=python,Python%203.12,auto;fastapi,FastAPI,auto;,Uvicorn,auto;,httpx,auto;&line2=yaml,YAML,auto;docker,Docker,auto;kubernetes,Kubernetes,auto;&line3=githubactions,GitHub%20Actions,auto;pytest,pytest,auto;prometheus,Prometheus,auto;" />
 </p>
 
-> A YAML-configured reverse proxy for third-party APIs, packaged as a plug-and-play container that deploys with Docker or Kubernetes so the systems calling it never hardcode upstream URLs, retries, or rate limits.
+> Third-party APIs behind one container, so the systems calling them never hardcode an upstream URL, a retry, or a rate limit.
 
 ---
 
 ## 🎯 What it does
 
-A reverse proxy that turns a YAML file into a set of API routes. List the APIs you want to reach in `config/gateway.yaml`, and on startup the gateway creates a matching endpoint on itself for each one. Adding or removing an API means editing that file and restarting — no Python involved.
+A reverse proxy that turns a YAML file into API routes. List an API in `config/gateway.yaml` and the gateway serves a matching endpoint for it. Adding or removing one is an edit and a restart — no Python.
 
 ```mermaid
 graph LR
     %% Nodes
-    External["🤖 External Automation\n(n8n, CI/CD, CronBots)"]
-    K8s["⚙️ Gateway Pods\n(Port 30000)"]
-    Config["📌 config/gateway.yaml\n(Your API Definitions)"]
-    Provider["🌍 Any External API\n(Weather, Finance, etc.)"]
+    External["🤖 External Automation<br/>(n8n, CI/CD, CronBots)"]
+    K8s["⚙️ Gateway Pods<br/>(Port 30000)"]
+    Config["📌 config/gateway.yaml<br/>(Your API Definitions)"]
+    Provider["🌍 Any External API<br/>(Weather, Finance, etc.)"]
 
     %% Connections
     External <-->|"HTTP / REST"| K8s
@@ -97,20 +97,71 @@ Created by `terraform apply` from [`terraform/aks/`](terraform/aks/). Destroyed 
 
 ---
 
+## 🧱 Architecture & Workflow
+
+How the image above got onto that cluster — four lanes, each owned by the tool that should own it.
+
+```mermaid
+flowchart TD
+    classDef ci fill:#e6f3ff,stroke:#0066cc,stroke-width:2px,color:#003366;
+    classDef tf fill:#f3e8ff,stroke:#7c3aed,stroke-width:2px,color:#3b0764;
+    classDef kz fill:#e6ffe6,stroke:#009933,stroke-width:2px,color:#004d1a;
+    classDef run fill:#fff4e6,stroke:#cc6600,stroke-width:2px,color:#663300;
+
+    style Build fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
+    style Provision fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
+    style Deploy fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
+    style Serve fill:#ffffff,stroke:#dee2e6,stroke-width:2px,stroke-dasharray: 5 5
+
+    subgraph Build [Build &amp; Publish -- GitHub Actions]
+        direction LR
+        A["lint · tests · deps<br/>infra · secrets · image"]:::ci --> B["publish<br/>needs: all six"]:::ci
+        B --> C["GHCR package<br/>tagged by commit SHA"]:::ci
+    end
+
+    subgraph Provision [Provision -- Terraform, run by hand]
+        direction LR
+        D["terraform/aks"]:::tf --> F["Cluster<br/>+ kubeconfig"]:::tf
+        E["terraform/gke"]:::tf --> F
+    end
+
+    subgraph Deploy [Deploy -- Kustomize, run by hand]
+        direction LR
+        G["base<br/>gateway.yaml becomes a ConfigMap"]:::kz --> H["overlays/cloud<br/>base and image pinned to one SHA"]:::kz
+    end
+
+    subgraph Serve [Serve -- left running on the cluster]
+        direction LR
+        I["Gateway pods<br/>non-root, read-only fs"]:::run --> J["/healthz + /readyz<br/>answered to the kubelet"]:::run
+        I --> K["/metrics<br/>gateway_requests_total"]:::run
+    end
+
+    C --> H
+    F --> G
+    H --> I
+```
+
+Only the first lane is automated. `terraform apply` and `kubectl apply -k` are run by hand, deliberately — CI publishes an image and stops there.
+
+The base is the local path: `NodePort`, a locally built image. `overlays/cloud` swaps in the `LoadBalancer` and pins the manifests and the image to the same commit SHA, so a cloud deploy names one version rather than two that can drift.
+
+---
+
 ## 🛠️ Key Engineering Decisions
 
 | Feature | Description |
 |---|---|
-| **Authentication** | Opt-in Bearer token protection for proxy routes (`API_AUTH_TOKEN`). Health probes remain safely unauthenticated. |
-| **Rate Limiting** | 100 req/min per route. Returns standard `429 Too Many Requests` (in-memory, scaled per pod). |
-| **Idempotent Retries** | Automatic exponential backoff (up to 3x) for `GET`/`HEAD` requests on `502`/`503`/`504` upstream failures. |
-| **Prometheus Metrics** | High-cardinality safe `/metrics` endpoint tracking request latency and volume natively. |
-| **Graceful Shutdown** | The shared HTTP client is closed on FastAPI `lifespan` exit, releasing in-flight upstream connections. |
-| **Structured Logging** | Built-in key/value observability (`request_id`, `method`, `path`, `status`, `duration_ms`). |
-| **Health Probes** | Explicit `/healthz` (liveness) and `/readyz` (readiness) endpoints. |
-| **Container Hardening** | Runs as non-root (`UID 1000`) on a read-only filesystem with dropped capabilities. |
+| **Asynchronous I/O** | While one request waits on a slow provider, the same worker keeps serving everyone else. A degraded upstream costs latency, not the capacity to answer other traffic. |
+| **Authentication** | Set `API_AUTH_TOKEN` and every proxy route demands it. Health checks stay open, because Kubernetes has no way to send a token. |
+| **Rate Limiting** | 100 requests a minute per caller, then a `429`. Each pod counts on its own, so three pods allow 300. |
+| **Idempotent Retries** | When an upstream API times out or returns a `502`/`503`/`504`, reads are tried again — three attempts, waiting longer between each. Writes are never retried, so nothing is submitted twice. |
+| **Prometheus Metrics** | `/metrics` counts and times every request by method, path and status. Rejections are counted too, not just the calls that worked. |
+| **Graceful Shutdown** | When the pod stops, the gateway closes its upstream connections instead of leaving them hanging. |
+| **Structured Logging** | One line per request — an ID, the method, path, status and how long it took. Readable in a terminal, parseable by anything you ship it to. |
+| **Health Probes** | `/healthz` says the process is alive. `/readyz` says it can take traffic. Kubernetes restarts or reroutes based on the answers. |
+| **Container Hardening** | Runs as an ordinary user, not root, and cannot write to its own filesystem. A compromised proxy has nothing to tamper with. |
 
-See [`docs/CHANGELOG.md`](docs/CHANGELOG.md) for detailed implementation notes.
+Implementation notes are in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
 
 ---
 
@@ -154,7 +205,7 @@ Copy `.env.example` to `.env` and edit it — `docker-compose.yml` loads it auto
 ## 📌 Usage: "Fill in the Blanks"
 
 > [!IMPORTANT]  
-> **Do NOT edit `src/main.py`** unless extending the core engine. Just define your APIs in `config/gateway.yaml` and let the engine handle the rest.
+> **Do NOT edit `src/main.py`** unless you are extending the engine itself.
 
 **Example `config/gateway.yaml`:**
 ```yaml
@@ -187,8 +238,8 @@ docker build -t universal-api-gateway:latest .
 kubectl apply -k .
 ```
 
-#### 🛡️ Verifying K8s Manifests (Dry Run)
-Verify manifests compile correctly without deploying:
+#### 🛡️ Dry Run
+Verify the manifests compile without deploying:
 ```bash
 kubectl kustomize .
 ```
@@ -197,7 +248,7 @@ kubectl kustomize .
 ---
 
 ## 📚 Documentation
-- [Architecture Overview](docs/ARCHITECTURE.md) — How the 3-Tier engine is mapped.
+- [Architecture Overview](docs/ARCHITECTURE.md) — The three layers, and the request lifecycle step by step.
 - [K8s Infrastructure](k8s/README.md) — How K8s is being utilized here.
 - [Engine Guide](src/README.md) — Details on the `main.py` Python proxy.
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — Infrastructure debugging, port collision fixes, and CI/CD gate failures.
@@ -208,25 +259,27 @@ kubectl kustomize .
 
 ## ⚙️ CI/CD Pipeline
 
-GitHub Actions runs six gates in parallel on every push/PR to `main`. All six must pass before the image is published to GHCR.
+Six gates in parallel on every push and PR to `main`. All six must pass before the image reaches GHCR.
 
 | Gate | What it checks |
 | :--- | :--- |
-| **Lint** | `ruff check` over `src/` and `tests/` (config in `ruff.toml`). |
-| **Tests** | `pytest` with coverage, floored at 75%. |
-| **Dependency audit** | `pip-audit` against both requirements files; fails on a known CVE. |
-| **Validate infrastructure** | `terraform fmt` + `validate` for both `terraform/aks` and `terraform/gke`, `kustomize build` for the base and the cloud overlay, then `kubeconform` against real Kubernetes schemas. |
-| **Secret scan** | `gitleaks` across the full commit history. |
-| **Build & scan image** | Builds the image, then Trivy fails the run on any fixable HIGH/CRITICAL CVE. |
+| **Lint** | `ruff check` over `src/` and `tests/` |
+| **Tests** | `pytest` with coverage, floored at 75% |
+| **Dependency audit** | `pip-audit` over both requirements files, failing on a known CVE |
+| **Validate infrastructure** | `terraform validate` for AKS and GKE, `kustomize build` for base and cloud, then `kubeconform` against real Kubernetes schemas |
+| **Secret scan** | `gitleaks` across the full history, not just the tip |
+| **Build & scan image** | Trivy, blocking on any fixable HIGH or CRITICAL |
 
-Dependency updates are proposed weekly by Dependabot for pip, GitHub Actions, and the Dockerfile base image.
+Dependabot proposes updates weekly for pip, Actions, and the base image.
 
-Run the Python gates locally with:
+Worth running before you push:
+
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
 ruff check src tests
 pytest --cov=src --cov-report=term-missing
 pip-audit -r requirements.txt -r requirements-dev.txt
 ```
 
-When a gate fails, [Troubleshooting → CI/CD](docs/TROUBLESHOOTING.md#cicd-github-actions) covers each failure mode with its root cause — stale base images, transitive CVEs held back by a direct pin, `terraform validate` passing on configs that cannot apply, and secret scans that silently check nothing on a shallow clone.
+CI never creates a cluster or deploys to one. A green check means the image is publishable — not that anything is running.
+
+When a gate fails, [Troubleshooting → CI/CD](docs/TROUBLESHOOTING.md#cicd-github-actions) has the root cause for each.
