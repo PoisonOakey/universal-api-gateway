@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────
 #  Stage 1: Lightweight Python image
 # ─────────────────────────────────────────────
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 # Links the published package back to this repository. Without it GHCR treats
 # the image as unattached: it never appears under Packages on the repo page,
